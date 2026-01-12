@@ -58,10 +58,9 @@ jobs:
         ./client/target/bin/sbtn --sbt-script=$(pwd)/sbt shutdown
         # test launcher script
         echo build using JDK 8 test using JDK 8 and JDK 25
-        cd launcher-package
-        sbt -Dsbt.build.version=$TEST_SBT_VER rpm:packageBin debian:packageBin
-        sbt -Dsbt.build.version=$TEST_SBT_VER integrationTest/test
-        cd citest && ./test.sh
+        sbt -Dsbt.build.version=$TEST_SBT_VER launcherPackage/Rpm/packageBin launcherPackage/Debian/packageBin
+        sbt -Dsbt.build.version=$TEST_SBT_VER launcherPackageIntegrationTest/test
+        cd launcher-package/citest && ./test.sh
         JAVA_HOME="$JAVA_HOME_25_X64"
         PATH="$JAVA_HOME_25_X64/bin:$PATH"
         java -Xmx32m -version
@@ -73,9 +72,8 @@ jobs:
         # test building sbtn on macOS
         ./sbt "-Dsbt.io.virtual=false" nativeImage
         # test launcher script
-        cd launcher-package
-        bin/coursier resolve
-        sbt -Dsbt.build.version=$TEST_SBT_VER integrationTest/test
+        launcher-package/bin/coursier resolve
+        sbt -Dsbt.build.version=$TEST_SBT_VER launcherPackageIntegrationTest/test
         # This fails due to the JLine issue
         # cd citest && ./test.sh
     - name: Client test (Windows)
@@ -89,9 +87,8 @@ jobs:
         ./client/target/bin/sbtn --sbt-script=$(pwd)/launcher-package/src/universal/bin/sbt.bat shutdown
         # test launcher script
         echo build using JDK 8 test using JDK 8 and JDK 25
-        cd launcher-package
-        bin/coursier.bat resolve
-        sbt -Dsbt.build.version=$TEST_SBT_VER integrationTest/test
-        cd citest
+        launcher-package/bin/coursier.bat resolve
+        sbt -Dsbt.build.version=$TEST_SBT_VER launcherPackageIntegrationTest/test
+        cd launcher-package/citest
         ./test.bat
         test3/test3.bat
