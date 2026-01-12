@@ -54,6 +54,8 @@ Global / excludeLint := (Global / excludeLint).?.value.getOrElse(Set.empty)
 Global / excludeLint += componentID
 Global / excludeLint += scriptedBufferLog
 Global / excludeLint += checkPluginCross
+Global / excludeLint += nativeImageJvm
+Global / excludeLint += nativeImageVersion
 
 def commonBaseSettings: Seq[Setting[_]] = Def.settings(
   headerLicense := Some(
@@ -1508,3 +1510,32 @@ ThisBuild / publishTo := {
   else localStaging.value
 }
 ThisBuild / publishMavenStyle := true
+
+lazy val launcherPackage = (project in file("launcher-package"))
+lazy val launcherPackageIntegrationTest =
+  (project in (file("launcher-package") / "integration-test"))
+    .settings(
+      name := "integration-test",
+      scalaVersion := scala3,
+      libraryDependencies ++= Seq(
+        scalaVerify % Test,
+        hedgehog % Test,
+        // This needs to be hardcoded here, and not use addSbtIO
+        "org.scala-sbt" %% "io" % "1.10.5" % Test,
+      ),
+      testFrameworks += TestFramework("hedgehog.sbt.Framework"),
+      testFrameworks += TestFramework("verify.runner.Framework"),
+      Test / test := {
+        (Test / test)
+          .dependsOn(launcherPackage / Universal / packageBin)
+          .dependsOn(launcherPackage / Universal / stage)
+          .value
+      },
+      Test / testOnly := {
+        (Test / testOnly)
+          .dependsOn(launcherPackage / Universal / packageBin)
+          .dependsOn(launcherPackage / Universal / stage)
+          .evaluated
+      },
+      Test / parallelExecution := false
+    )
