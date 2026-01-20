@@ -46,9 +46,19 @@ lazy val root = (project in file("."))
         .withMetadataDirectory(dependencyCacheDirectory.value)
 
       import sbt.librarymanagement.{ ModuleSettings, UpdateConfiguration, LibraryManagementCodec }
-      type In = (Long, ModuleSettings, UpdateConfiguration)
+      // The fourth element is transitive dependency stamps for cross-command cache invalidation
+      type In = (Long, ModuleSettings, UpdateConfiguration, Vector[Long])
 
       import LibraryManagementCodec._
+
+      // Compute transitive stamps the same way as LibraryManagement.cachedUpdate
+      val transitiveStamps0 = transitiveUpdate.value.map { ur =>
+        ur.configurations
+          .flatMap(_.modules.map(mr => (mr.module.organization, mr.module.name, mr.module.revision)))
+          .toSet
+          .hashCode
+          .toLong
+      }.toVector
 
       val f: In => Unit =
         Tracked.inputChanged(cacheStoreFactory make "inputs") { (inChanged: Boolean, in: In) =>
@@ -56,6 +66,7 @@ lazy val root = (project in file("."))
           val moduleSettings1 = in._2
           val inline1 = moduleSettings1 match { case x: InlineConfiguration => x }
           val updateConfig1 = in._3
+          val transitiveStamps1 = in._4
 
           if (inChanged) {
             sys.error(s"""
@@ -82,11 +93,19 @@ $updateConfig1
 
 updateConfig0
 $updateConfig0
+-----
+transitiveStamps1 == transitiveStamps0: ${transitiveStamps1 == transitiveStamps0}
+
+transitiveStamps1:
+$transitiveStamps1
+
+transitiveStamps0
+$transitiveStamps0
 """)
           }
         }
 
-      f((extraInputHash0, (inline0: ModuleSettings), updateConfig0))
+      f((extraInputHash0, (inline0: ModuleSettings), updateConfig0, transitiveStamps0))
     },
 
     // https://github.com/sbt/sbt/issues/3226
