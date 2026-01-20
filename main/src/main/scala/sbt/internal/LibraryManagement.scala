@@ -26,7 +26,8 @@ import scala.compat.Platform.EOL
 private[sbt] object LibraryManagement {
   implicit val linter: sbt.dsl.LinterLevel.Ignore.type = sbt.dsl.LinterLevel.Ignore
 
-  private type UpdateInputs = (Long, ModuleSettings, UpdateConfiguration)
+  // The fourth element is transitive dependency stamps for cross-command cache invalidation
+  private type UpdateInputs = (Long, ModuleSettings, UpdateConfiguration, Vector[Long])
 
   def cachedUpdate(
       lm: DependencyResolution,
@@ -37,7 +38,7 @@ private[sbt] object LibraryManagement {
       transform: UpdateReport => UpdateReport,
       skip: Boolean,
       force: Boolean,
-      depsUpdated: Boolean,
+      transitiveUpdates: Seq[UpdateReport],
       uwConfig: UnresolvedWarningConfiguration,
       evictionLevel: Level.Value,
       versionSchemeOverrides: Seq[ModuleID],
@@ -102,8 +103,9 @@ private[sbt] object LibraryManagement {
 
     /* Check if a update report is still up to date or we must resolve again. */
     def upToDate(inChanged: Boolean, out: UpdateReport): Boolean = {
+      // Transitive dependency stamps are now part of UpdateInputs, so inChanged
+      // will be true if any transitive stamp changed (cross-command invalidation).
       !force &&
-      !depsUpdated &&
       !inChanged &&
       out.allFiles.forall(f => fileUptodate(f, out.stamps, log)) &&
       fileUptodate(out.cachedDescriptor, out.stamps, log)
@@ -166,7 +168,18 @@ private[sbt] object LibraryManagement {
     val handler = if (skip && !force) skipResolve(outStore)(_) else doResolve(outStore)
     // Remove clock for caching purpose
     val withoutClock = updateConfig.withLogicalClock(LogicalClock.unknown)
-    handler((extraInputHash, settings, withoutClock))
+    // Collect transitive stamps for cross-command cache invalidation.
+    // Hash the resolved module IDs (org, name, revision) from each transitive update.
+    // This changes when any transitive dependency's resolved versions change,
+    // enabling correct cache invalidation across commands.
+    val transitiveStamps = transitiveUpdates.map { ur =>
+      ur.configurations
+        .flatMap(_.modules.map(mr => (mr.module.organization, mr.module.name, mr.module.revision)))
+        .toSet
+        .hashCode
+        .toLong
+    }.toVector
+    handler((extraInputHash, settings, withoutClock, transitiveStamps))
   }
 
   private[this] def fileUptodate(file: File, stamps: Map[File, Long], log: Logger): Boolean = {
@@ -299,7 +312,7 @@ private[sbt] object LibraryManagement {
           identity,
           skip = (update / skip).value,
           force = shouldForce,
-          depsUpdated = transitiveUpdate.value.exists(!_.stats.cached),
+          transitiveUpdates = transitiveUpdate.value,
           uwConfig = (update / unresolvedWarningConfiguration).value,
           evictionLevel = Level.Debug,
           versionSchemeOverrides = Nil,
