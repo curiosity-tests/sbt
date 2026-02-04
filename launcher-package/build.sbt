@@ -101,7 +101,6 @@ val launcherPackage = (project in file(".")).
         case _ => Nil
       }
     },
-    usePgpKeyHex("642AC823"),
     pgpSecretRing := file(s"""${sys.props("user.home")}""") / ".ssh" / "scalasbt.key",
     pgpPublicRing := file(s"""${sys.props("user.home")}""") / ".ssh" / "scalasbt.pub",
     publishToSettings,

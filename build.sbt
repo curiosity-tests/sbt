@@ -11,7 +11,7 @@ import scala.util.Try
 // ThisBuild settings take lower precedence,
 // but can be shared across the multi projects.
 ThisBuild / version := {
-  val v = "1.12.0-SNAPSHOT"
+  val v = "1.12.3-SNAPSHOT"
   nightlyVersion.getOrElse(v)
 }
 ThisBuild / version2_13 := "2.0.0-SNAPSHOT"
@@ -56,6 +56,9 @@ Global / excludeLint += scriptedBufferLog
 Global / excludeLint += checkPluginCross
 Global / excludeLint += nativeImageJvm
 Global / excludeLint += nativeImageVersion
+
+usePgpKeyHex("642AC823")
+// usePgpKeyHex("2BE67AC00D699E04E840B7FE29967E804D85663F")
 
 def commonBaseSettings: Seq[Setting[_]] = Def.settings(
   headerLicense := Some(
