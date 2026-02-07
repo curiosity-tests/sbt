@@ -194,4 +194,59 @@ object RunnerScriptTest extends verify.BasicTestSuite with ShellScriptUtil:
         s"Machine config should appear before project config. machineIndex=$machineIndex, projectIndex=$projectIndex"
       )
 
+  testOutput(
+    "command line options override project .sbtopts",
+    sbtOptsFileContents =
+      "-J-Xmx2g\n-J-XX:ReservedCodeCacheSize=1g\n-J-XX:MaxMetaspaceSize=2g\n-J-Xss512m\n-J-XX:+UseG1GC"
+  )("-d", "-v", "-mem", "12288"): (out: List[String]) =>
+    if (isWindows) cancel("Test not supported on windows")
+    else
+      val cmdLineStart = out.indexWhere(_.contains("Executing command line"))
+      assert(cmdLineStart >= 0, "Command line section not found")
+
+      val cmdLine = out.drop(cmdLineStart + 1).takeWhile(!_.trim.isEmpty)
+      val xmxCliIndex = cmdLine.indexWhere(_.contains("-Xmx12288m"))
+      val xmxSbtoptsIndex = cmdLine.indexWhere(_.contains("-Xmx2g"))
+      val g1Index = cmdLine.indexWhere(_.contains("-XX:+UseG1GC"))
+
+      assert(xmxCliIndex >= 0, "CLI memory setting not found in command line")
+      assert(xmxSbtoptsIndex < 0, "sbtopts -Xmx2g should be overridden by CLI")
+      assert(g1Index >= 0, "sbtopts non-memory option not found in command line")
+      assert(
+        g1Index < xmxCliIndex,
+        s"sbtopts options should appear before CLI memory settings. g1Index=$g1Index, xmxCliIndex=$xmxCliIndex"
+      )
+
+  // Test for issue #7289: Special characters in .jvmopts should not cause shell expansion
+  testOutput(
+    "sbt with special characters in .jvmopts (pipes, wildcards, ampersands)",
+    jvmoptsFileContents =
+      "-Dtest.pipes=host1|host2|host3\n-Dtest.wildcards=path/*/pattern\n-Dtest.ampersand=value&other",
+    windowsSupport = false,
+  )("-v"): (out: List[String]) =>
+    // Verify that properties with special characters are handled correctly
+    // The pipe characters should be treated literally, not as shell operators
+    assert(
+      out.contains[String]("-Dtest.pipes=host1|host2|host3"),
+      "Property with pipes should be handled correctly"
+    )
+    assert(
+      out.contains[String]("-Dtest.wildcards=path/*/pattern"),
+      "Property with wildcards should be handled correctly"
+    )
+    assert(
+      out.contains[String]("-Dtest.ampersand=value&other"),
+      "Property with ampersands should be handled correctly"
+    )
+    // Verify no shell errors occurred (no "command not found" messages or "unexpected" errors)
+    val errorMessages = out.filter(line =>
+      line.contains("command not found") ||
+        line.contains("was unexpected at this time") ||
+        line.contains("syntax error")
+    )
+    assert(
+      errorMessages.isEmpty,
+      s"Should not have shell expansion errors, but found: ${errorMessages.mkString(", ")}"
+    )
+
 end RunnerScriptTest
