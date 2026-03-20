@@ -1300,7 +1300,13 @@ object NetworkClient {
         case "--sbt-launch-jar" if i + 1 < sanitized.length =>
           i += 1
           launchJar = Option(sanitized(i).replace("%20", " "))
-        case "-bsp" | "--bsp" => bsp = true
+        case "-bsp" | "--bsp" | "bsp" => bsp = true
+        case "-no-server" | "--no-server" =>
+          System.setProperty("sbt.server.autostart", "false")
+        case a if a.startsWith("--autostart=") =>
+          System.setProperty("sbt.server.autostart", a.stripPrefix("--autostart="))
+        case a if a.startsWith("-autostart=") =>
+          System.setProperty("sbt.server.autostart", a.stripPrefix("-autostart="))
         case a if launcherValueFlags.contains(a) =>
           if (i + 1 < sanitized.length) i += 1
         case a if launcherNoValueFlags.contains(a)                => ()
