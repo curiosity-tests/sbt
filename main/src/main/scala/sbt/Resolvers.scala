@@ -19,9 +19,10 @@ import BuildLoader.ResolveInfo
 import RichURI.fromURI
 import java.util.Locale
 
-import scala.sys.process.Process
+import scala.sys.process.{ BasicIO, Process }
 import scala.util.control.NonFatal
-import sbt.internal.util.Util
+import sbt.util.Logger
+import sbt.internal.VcsUriFragment
 
 object Resolvers {
   type Resolver = BuildLoader.Resolver
@@ -55,6 +56,7 @@ object Resolvers {
 
     if (uri.hasFragment) {
       val revision = uri.getFragment
+      VcsUriFragment.validate(revision)
       Some { () =>
         creates(localCopy) {
           run("svn", "checkout", "-q", "-r", revision, from, to)
@@ -87,6 +89,7 @@ object Resolvers {
 
     if (uri.hasFragment) {
       val branch = uri.getFragment
+      VcsUriFragment.validate(branch)
       Some { () =>
         creates(localCopy) {
           run("git", "clone", from, localCopy.getAbsolutePath)
@@ -115,6 +118,7 @@ object Resolvers {
 
       if (uri.hasFragment) {
         val branch = uri.getFragment
+        VcsUriFragment.validate(branch)
         Some { () =>
           creates(localCopy) {
             clone(from, to = localCopy)
@@ -133,12 +137,19 @@ object Resolvers {
   def run(command: String*): Unit =
     run(None, command: _*)
 
-  def run(cwd: Option[File], command: String*): Unit = {
-    val result = Process(
-      if (Util.isNonCygwinWindows) "cmd" +: "/c" +: command
-      else command,
-      cwd
-    ) !;
+  def run(cwd: Option[File], command: String*): Unit =
+    run(None, None, command: _*)
+
+  private def run(cwd: Option[File], log: Option[Logger], command: String*): Unit = {
+    val process = Process(command, cwd)
+    val result = (log match {
+      case Some(log) =>
+        val io = BasicIO(false, log).withInput(_.close())
+        process.run(io).exitValue()
+      case None =>
+        process.run().exitValue()
+    })
+
     if (result != 0)
       sys.error("Nonzero exit code (" + result + "): " + command.mkString(" "))
   }
@@ -172,6 +183,6 @@ object Resolvers {
   private[this] def normalizeDirectoryName(name: String): String =
     dropExtensions(name).toLowerCase(Locale.ENGLISH).replaceAll("""\W+""", "-")
 
-  private[this] def dropExtensions(name: String): String = name.takeWhile(_ != '.')
+  private def dropExtensions(name: String): String = name.takeWhile(_ != '.')
 
 }
