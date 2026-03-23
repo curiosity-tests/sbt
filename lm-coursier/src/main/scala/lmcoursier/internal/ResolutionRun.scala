@@ -12,6 +12,7 @@ import coursier.params.rule.RuleResolution
 import coursier.util.Task
 import sbt.util.Logger
 
+import scala.annotation.nowarn
 import scala.concurrent.duration.FiniteDuration
 import scala.collection.mutable
 
@@ -44,6 +45,7 @@ object ResolutionRun {
 
     val printOptionalMessage = verbosityLevel >= 0 && verbosityLevel <= 1
 
+    @nowarn
     def depsRepr(deps: Seq[(Configuration, Dependency)]) =
       deps
         .map { (config, dep) =>
@@ -89,6 +91,7 @@ object ResolutionRun {
     if (verbosityLevel >= 2)
       log.info(initialMessage)
 
+    @nowarn
     val resolveTask: Resolve[Task] = {
       Resolve()
         // re-using various caches from a resolution of a configuration we extend
@@ -141,12 +144,7 @@ object ResolutionRun {
         resolveTask.io.attempt
           .flatMap {
             case Left(e: ResolutionError) =>
-              val hasConnectionTimeouts = e.errors.exists {
-                case err: CantDownloadModule =>
-                  err.perRepositoryErrors.exists(_.contains("Connection timed out"))
-                case _ => false
-              }
-              if (hasConnectionTimeouts)
+              if (isTransientResolutionError(e))
                 if (attempt + 1 >= maxAttempts) {
                   log.error(s"Failed, maximum iterations ($maxAttempts) reached")
                   Task.point(Left(e))
@@ -173,6 +171,7 @@ object ResolutionRun {
     }
   }
 
+  @nowarn
   def resolutions(
       params: ResolutionParams,
       verbosityLevel: Int,
@@ -276,4 +275,16 @@ object ResolutionRun {
   }
 
   private lazy val retryScheduler = ThreadUtil.fixedScheduledThreadPool(1)
+
+  private[internal] def isTransientResolutionError(e: ResolutionError): Boolean =
+    e.errors.exists {
+      case err: CantDownloadModule => isTimeout(err) || isServerError(err)
+      case _                       => false
+    }
+
+  private def isTimeout(err: CantDownloadModule): Boolean =
+    err.perRepositoryErrors.exists(_.contains("Connection timed out"))
+
+  private def isServerError(err: CantDownloadModule): Boolean =
+    err.perRepositoryErrors.exists(_.contains("Server returned HTTP response code: 5"))
 }
