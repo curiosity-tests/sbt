@@ -15,9 +15,14 @@ import hedgehog.runner.*
 object VcsUriFragmentTest extends Properties:
   override def tests: List[Test] = List(
     example("accepts typical branch and tag names", testAcceptsSafe),
+    example("accepts hex commit id fragment", testAcceptsHexSha),
+    example("rejects empty fragment", testRejectsEmpty),
     example("rejects ampersand", testRejectsAmpersand),
     example("rejects pipe", testRejectsPipe),
     example("rejects semicolon", testRejectsSemicolon),
+    example("rejects space", testRejectsSpace),
+    example("rejects percent", testRejectsPercent),
+    example("rejects greater-than", testRejectsGreaterThan),
     example("rejects newline", testRejectsNewline),
     example("rejects DEL", testRejectsDel),
   )
@@ -26,7 +31,15 @@ object VcsUriFragmentTest extends Properties:
     VcsUriFragment.validate("develop")
     VcsUriFragment.validate("v1.2.3")
     VcsUriFragment.validate("feature/foo-bar")
+    VcsUriFragment.validate("release/1.0.0+build")
     Result.success
+
+  def testAcceptsHexSha: Result =
+    VcsUriFragment.validate("abc123def4567890abcdef1234567890abcdef12")
+    Result.success
+
+  def testRejectsEmpty: Result =
+    interceptIllegal("")
 
   def testRejectsAmpersand: Result =
     interceptIllegal("a&b")
@@ -36,6 +49,15 @@ object VcsUriFragmentTest extends Properties:
 
   def testRejectsSemicolon: Result =
     interceptIllegal("a;b")
+
+  def testRejectsSpace: Result =
+    interceptIllegal("a b")
+
+  def testRejectsPercent: Result =
+    interceptIllegal("a%20b")
+
+  def testRejectsGreaterThan: Result =
+    interceptIllegal("a>b")
 
   def testRejectsNewline: Result =
     interceptIllegal("a\nb")

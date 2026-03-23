@@ -14,15 +14,19 @@ private[sbt] object VcsUriFragment {
   def validate(fragment: String): Unit = {
     if (fragment == null)
       throw new IllegalArgumentException("VCS URI fragment must not be null")
+    if (fragment.isEmpty)
+      throw new IllegalArgumentException("VCS URI fragment must not be empty")
     fragment.foreach { c =>
-      if (c == '&' || c == '|' || c == ';')
+      if (!isAllowed(c))
         throw new IllegalArgumentException(
-          "Invalid character in VCS URI fragment (shell metacharacters are not allowed)"
-        )
-      if (Character.isISOControl(c))
-        throw new IllegalArgumentException(
-          "Invalid character in VCS URI fragment (control characters are not allowed)"
+          "Invalid character in VCS URI fragment (only ASCII letters, digits, and - _ . / + are allowed)"
         )
     }
   }
+
+  private def isAllowed(c: Char): Boolean =
+    (c >= 'a' && c <= 'z') ||
+      (c >= 'A' && c <= 'Z') ||
+      (c >= '0' && c <= '9') ||
+      c == '-' || c == '_' || c == '.' || c == '/' || c == '+'
 }
