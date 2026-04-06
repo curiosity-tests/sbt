@@ -420,6 +420,7 @@ object Defaults extends BuildCommon {
       terminal := Def.uncached(state.value.get(terminalKey).getOrElse(Terminal(ITerminal.get))),
       InstallSbtn.installSbtn := InstallSbtn.installSbtnImpl.evaluated,
       InstallSbtn.installSbtn / aggregate := false,
+      checkBuildSources / pollInterval :== CheckBuildSources.defaultPollInterval,
     ) ++ LintUnused.lintSettings
       ++ DefaultBackgroundJobService.backgroundJobServiceSettings
       ++ RemoteCache.globalSettings
@@ -555,8 +556,6 @@ object Defaults extends BuildCommon {
     sourceManaged := target.value / "src_managed",
     resourceManaged := target.value / "resource_managed",
     // Adds subproject build.sbt files to the global list of build files to monitor
-    Scope.Global / checkBuildSources / pollInterval :==
-      new FiniteDuration(Int.MinValue, TimeUnit.MILLISECONDS),
     Scope.Global / checkBuildSources / fileInputs ++= {
       if ((Scope.Global / onChangedBuildSource).value != IgnoreSourceChanges)
         Seq(baseDirectory.value.toGlob / "*.sbt")
