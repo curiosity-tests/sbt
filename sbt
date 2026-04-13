@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set +e
-declare builtin_sbt_version="1.12.0"
+declare builtin_sbt_version="2.0.0-RC12"
 declare -a residual_args
 declare -a java_args
 declare -a scalac_args
@@ -25,7 +25,7 @@ declare use_sbtn=
 declare use_jvm_client=
 declare no_server=
 declare sbtn_command="$SBTN_CMD"
-declare sbtn_version="1.12.5"
+declare sbtn_version="2.0.0-RC12"
 declare use_colors=1
 declare is_this_dir_sbt=""
 declare hide_jdk_warnings=1
