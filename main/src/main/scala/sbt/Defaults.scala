@@ -3840,6 +3840,7 @@ object Classpaths {
       transitiveUpdates = transitiveUpdate.value,
       uwConfig = (update / unresolvedWarningConfiguration).value,
       evictionLevel = evictionErrorLevel.value,
+      evictionWarningOptions = (update / evictionWarningOptions).value,
       versionSchemeOverrides = libraryDependencySchemes.value,
       assumedEvictionErrorLevel = assumedEvictionErrorLevel.value,
       assumedVersionScheme = assumedVersionScheme.value,
