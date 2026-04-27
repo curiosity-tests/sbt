@@ -25,6 +25,7 @@ import sbt.io.syntax.*
 import sbt.librarymanagement.*
 import sbt.librarymanagement.syntax.*
 import sbt.nio.file.{ Glob, RecursiveGlob }
+import scala.jdk.CollectionConverters.*
 
 object ScriptedPlugin extends AutoPlugin {
 
@@ -63,6 +64,8 @@ object ScriptedPlugin extends AutoPlugin {
 
   override lazy val projectSettings: Seq[Setting[?]] = Seq(
     ivyConfigurations ++= Seq(ScriptedConf, ScriptedLaunchConf),
+    scripted / includeFilter := AllPassFilter,
+    scripted / excludeFilter := NothingFilter,
     scriptedSbt := (pluginCrossBuild / sbtVersion).value,
     sbtLauncher := Def.uncached(
       getJars(ScriptedLaunchConf)
@@ -177,13 +180,15 @@ object ScriptedPlugin extends AutoPlugin {
       scriptedRun.value.run(
         sbtTestDirectory.value,
         scriptedBufferLog.value,
-        args,
+        args.toList.asJava,
         sbtLauncher.value,
         Fork.javaCommand((scripted / javaHome).value, "java").getAbsolutePath,
-        scriptedLaunchOpts.value,
+        scriptedLaunchOpts.value.toList.asJava,
         new java.util.ArrayList[File](),
         scriptedParallelInstances.value,
-        scriptedKeepTempDirectory.value
+        scriptedKeepTempDirectory.value,
+        (scripted / includeFilter).value,
+        (scripted / excludeFilter).value,
       )
     }
 

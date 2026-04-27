@@ -6,6 +6,7 @@ import sbt.*
 import sbt.internal.inc.ScalaInstance
 import sbt.internal.inc.classpath.{ ClasspathUtilities, FilteredLoader }
 import scala.annotation.nowarn
+import scala.collection.JavaConverters.*
 
 object LocalScriptedPlugin extends AutoPlugin {
   override def requires = plugins.JvmPlugin
@@ -31,6 +32,20 @@ object Scripted {
   if (!sys.props.contains("jna.nosys")) sys.props.put("jna.nosys", "true")
 
   val RepoOverrideTest = config("repoOverrideTest") extend Compile
+
+  val sbtWindowsExcludeFilter: FileFilter =
+    if (scala.util.Properties.isWin)
+      new SimpleFileFilter(f =>
+        (f.getParentFile.getName, f.getName) match {
+          case ("classloader-cache", "jni") => true // no native lib is built for windows
+          case ("classloader-cache", "spark") =>
+            true // the test spark server is unable to bind to a local socket on Visual Studio 2019
+          case ("nio", "make-clone") => true // uses gcc which isn't set up on all systems
+          case ("watch", "symlinks") => true // symlinks don't work the same on windows
+          case _                     => false
+        }
+      )
+    else NothingFilter
 
   import sbt.complete.*
 
@@ -106,7 +121,9 @@ object Scripted {
       classpath: Seq[File],
       launcherJar: File,
       logger: Logger,
-      keepTempDirectory: Boolean
+      keepTempDirectory: Boolean,
+      includeFilter: java.io.FileFilter,
+      excludeFilter: java.io.FileFilter,
   ): Unit = {
     logger.info(s"Tests selected: ${args.mkString("\n * ", "\n * ", "\n")}")
     logger.info("")
@@ -120,28 +137,18 @@ object Scripted {
 
     // Interface to cross class loader
     type SbtScriptedRunner = {
-      // def runInParallel(
-      //     resourceBaseDirectory: File,
-      //     bufferLog: Boolean,
-      //     tests: Array[String],
-      //     launchOpts: Array[String],
-      //     prescripted: java.util.List[File],
-      //     scalaVersion: String,
-      //     sbtVersion: String,
-      //     classpath: Array[File],
-      //     instances: Int
-      // ): Unit
-
       def runInParallel(
           resourceBaseDirectory: File,
           bufferLog: Boolean,
-          tests: Array[String],
+          tests: java.util.List[String],
           launcherJar: File,
           javaCommand: String,
-          launchOpts: Array[String],
+          launchOpts: java.util.List[String],
           prescripted: java.util.List[File],
           instance: Int,
-          keepTempDirectory: Boolean
+          keepTempDirectory: Boolean,
+          includeFilter: java.io.FileFilter,
+          excludeFilter: java.io.FileFilter,
       ): Unit
     }
 
@@ -166,27 +173,18 @@ object Scripted {
         }
         import scala.language.reflectiveCalls
 
-        // bridge.runInParallel(
-        //   sourcePath,
-        //   bufferLog,
-        //   args.toArray,
-        //   launchOpts.toArray,
-        //   callback,
-        //   scalaVersion,
-        //   sbtVersion,
-        //   classpath.toArray,
-        //   instances
-        // )
         bridge.runInParallel(
           sourcePath,
           bufferLog,
-          args.toArray,
+          args.toList.asJava,
           launcherJar,
           "java",
-          launchOpts.toArray,
+          launchOpts.toList.asJava,
           callback,
           instances,
-          keepTempDirectory
+          keepTempDirectory,
+          includeFilter,
+          excludeFilter,
         )
       } catch { case ite: InvocationTargetException => throw ite.getCause }
     } finally {
