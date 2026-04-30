@@ -1573,6 +1573,7 @@ object Defaults extends BuildCommon {
             opts,
             s.log,
             forkedParallelism,
+            strategy != ClassLoaderLayeringStrategy.Raw,
             (Tags.ForkedTestGroup, 1) +: group.tags*
           )
         case Tests.InProcess =>
