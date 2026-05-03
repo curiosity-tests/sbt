@@ -366,12 +366,11 @@ private[sbt] final class CommandExchange {
   }
 
   // This is an interface to directly notify events.
-  private[sbt] def notifyEvent[A: JsonFormat](method: String, params: A): Unit = {
-    channels.foreach {
-      case c: NetworkChannel => tryTo(_.notifyEvent(method, params))(c)
-      case _                 =>
-    }
-  }
+  private[sbt] def notifyEvent[A: JsonFormat](method: String, params: A): Unit =
+    channels.foreach:
+      case c: NetworkChannel if c.subscribeToAll || isChannelOwner(c) =>
+        tryTo(_.notifyEvent(method, params))(c)
+      case _ =>
 
   private def tryTo(f: NetworkChannel => Unit)(
       channel: NetworkChannel
@@ -418,12 +417,23 @@ private[sbt] final class CommandExchange {
     }
   def unprompt(event: ConsoleUnpromptEvent): Unit = channels.foreach(_.unprompt(event))
 
-  def logMessage(event: LogEvent): Unit = {
-    channels.foreach {
-      case c: NetworkChannel => tryTo(_.notifyEvent(event))(c)
-      case _                 =>
-    }
-  }
+  def logMessage(event: LogEvent): Unit =
+    channels.foreach:
+      case c: NetworkChannel if c.subscribeToAll || isChannelOwner(c) =>
+        tryTo(_.notifyEvent(event))(c)
+      case _ =>
+
+  // Route a log event to a specific channel, independent of currentExec.
+  // Used for background job output so messages reach the originating client
+  // even after the spawning task has completed and currentExec has been cleared.
+  private[sbt] def logMessage(channelName: String, event: LogEvent): Unit =
+    channels.foreach:
+      case c: NetworkChannel if c.subscribeToAll || c.name == channelName =>
+        tryTo(_.notifyEvent(event))(c)
+      case _ =>
+
+  private def isChannelOwner(c: NetworkChannel): Boolean =
+    currentExec.exists(_.source.exists(_.channelName == c.name))
 
   def notifyStatus(event: ExecStatusEvent): Unit = {
     for {

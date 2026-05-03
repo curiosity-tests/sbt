@@ -318,6 +318,7 @@ class NetworkClient(
       token = tkn,
       skipAnalysis = Some(skipAnalysis),
       canWork = Some(true),
+      subscribeToAll = Some(false),
     )
     val initCommand = InitCommand(
       token = tkn, // duplicated with opts for compatibility
