@@ -684,8 +684,9 @@ lazy val zincLmIntegrationProj = (project in file("zinc-lm-integration"))
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincLmUtil.*"),
     ),
     libraryDependencies += launcherInterface,
+    libraryDependencies += scalaCollectionCompat % Test,
   )
-  .dependsOn(lmCore, lmIvy)
+  .dependsOn(lmCore, lmCoursierShadedPublishing % Test)
   .configure(addSbtZincCompileCore)
 
 lazy val buildFileProj = (project in file("buildfile"))
@@ -711,6 +712,7 @@ lazy val mainProj = (project in file("main"))
     runProj,
     commandProj,
     collectionProj,
+    lmIvy,
     zincLmIntegrationProj,
     utilLogging,
   )
@@ -1279,8 +1281,9 @@ lazy val lmCoursierDependencies = Def.settings(
     coursierSbtMavenRepo,
     "io.get-coursier.jniutils" % "windows-jni-utils-lmcoursier" % jniUtilsVersion,
     "net.hamnaberg" %% "dataclass-annotation" % dataclassScalafixVersion % Provided,
-    "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   ),
+  libraryDependencies ++= Dependencies.scalatest,
+  libraryDependencies += scalaVerify % Test,
   excludeDependencies ++= Seq(
     ExclusionRule("org.scala-lang.modules", "scala-xml_2.13"),
   ),
