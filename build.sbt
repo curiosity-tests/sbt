@@ -840,7 +840,7 @@ lazy val sbtClientProj = (project in file("client"))
     bspEnabled := false,
     crossPaths := false,
     exportJars := true,
-    libraryDependencies += scalatest % Test,
+    libraryDependencies ++= Dependencies.scalatest,
     Compile / mainClass := Some("sbt.client.Client"),
     nativeImageReady := { () =>
       ()
@@ -1172,11 +1172,11 @@ lazy val lmCore = (project in file("lm-core"))
       scalaXml,
       sjsonNewScalaJson.value % Optional,
       sjsonNewCore.value % Optional,
-      scalatest % Test,
       scalacheck % Test,
       scalaVerify % Test,
       hedgehog % Test,
     ),
+    libraryDependencies ++= Dependencies.scalatest,
     Compile / resourceGenerators += Def
       .task(
         Utils.generateVersionFile(
@@ -1230,11 +1230,11 @@ lazy val lmIvy = (project in file("lm-ivy"))
       ivy,
       sjsonNewScalaJson.value,
       sjsonNewCore.value,
-      scalatest % Test,
       scalacheck % Test,
       scalaVerify % Test,
       hedgehog % Test,
     ),
+    libraryDependencies ++= Dependencies.scalatest,
     contrabandSettings,
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
