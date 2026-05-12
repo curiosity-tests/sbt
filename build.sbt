@@ -684,8 +684,9 @@ lazy val zincLmIntegrationProj = (project in file("zinc-lm-integration"))
       exclude[DirectMissingMethodProblem]("sbt.internal.inc.ZincLmUtil.*"),
     ),
     libraryDependencies += launcherInterface,
+    libraryDependencies += scalaCollectionCompat % Test,
   )
-  .dependsOn(lmCore, lmIvy)
+  .dependsOn(lmCore, lmCoursierShadedPublishing % Test)
   .configure(addSbtZincCompileCore)
 
 lazy val buildFileProj = (project in file("buildfile"))
@@ -711,6 +712,7 @@ lazy val mainProj = (project in file("main"))
     runProj,
     commandProj,
     collectionProj,
+    lmIvy,
     zincLmIntegrationProj,
     utilLogging,
   )
@@ -838,7 +840,7 @@ lazy val sbtClientProj = (project in file("client"))
     bspEnabled := false,
     crossPaths := false,
     exportJars := true,
-    libraryDependencies += scalatest % Test,
+    libraryDependencies ++= Dependencies.scalatest,
     Compile / mainClass := Some("sbt.client.Client"),
     nativeImageReady := { () =>
       ()
@@ -1170,11 +1172,11 @@ lazy val lmCore = (project in file("lm-core"))
       scalaXml,
       sjsonNewScalaJson.value % Optional,
       sjsonNewCore.value % Optional,
-      scalatest % Test,
       scalacheck % Test,
       scalaVerify % Test,
       hedgehog % Test,
     ),
+    libraryDependencies ++= Dependencies.scalatest,
     Compile / resourceGenerators += Def
       .task(
         Utils.generateVersionFile(
@@ -1228,11 +1230,11 @@ lazy val lmIvy = (project in file("lm-ivy"))
       ivy,
       sjsonNewScalaJson.value,
       sjsonNewCore.value,
-      scalatest % Test,
       scalacheck % Test,
       scalaVerify % Test,
       hedgehog % Test,
     ),
+    libraryDependencies ++= Dependencies.scalatest,
     contrabandSettings,
     Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
     mimaSettings,
@@ -1279,8 +1281,9 @@ lazy val lmCoursierDependencies = Def.settings(
     coursierSbtMavenRepo,
     "io.get-coursier.jniutils" % "windows-jni-utils-lmcoursier" % jniUtilsVersion,
     "net.hamnaberg" %% "dataclass-annotation" % dataclassScalafixVersion % Provided,
-    "org.scalatest" %% "scalatest" % "3.2.19" % Test,
   ),
+  libraryDependencies ++= Dependencies.scalatest,
+  libraryDependencies += scalaVerify % Test,
   excludeDependencies ++= Seq(
     ExclusionRule("org.scala-lang.modules", "scala-xml_2.13"),
   ),
