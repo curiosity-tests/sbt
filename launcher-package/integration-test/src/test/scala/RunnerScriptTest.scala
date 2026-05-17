@@ -330,4 +330,8 @@ object RunnerScriptTest extends verify.BasicTestSuite with ShellScriptUtil:
       s"Should not have errors from comment character, but found: ${errorMessages.mkString(", ")}"
     )
 
+  testOutput("sbt --experimental_execution_log=true")("--experimental_execution_log=true", "-v"):
+    (out: List[String]) =>
+      assert(out.contains[String]("-Dsbt.experimental_execution_log=true"))
+
 end RunnerScriptTest

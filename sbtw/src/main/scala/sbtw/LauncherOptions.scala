@@ -29,11 +29,13 @@ case class LauncherOptions(
     mem: Option[Int] = None,
     supershell: Option[String] = None,
     color: Option[String] = None,
+    autostart: Option[String] = None,
     jvmDebug: Option[Int] = None,
     javaHome: Option[String] = None,
     server: Boolean = false,
     residual: Seq[String] = Nil,
     sbtNew: Boolean = false,
+    experimentalExecutionLog: Option[String] = None,
 )
 
 object LauncherOptions:
