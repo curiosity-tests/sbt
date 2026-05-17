@@ -78,7 +78,7 @@ class ChannelCursorTest extends AbstractServerTest {
     @tailrec def impl(): Boolean =
       lines.poll(deadline.timeLeft.toMillis, TimeUnit.MILLISECONDS) match {
         case null => false
-        case s    => if (!f(s) && !deadline.isOverdue) impl() else !deadline.isOverdue()
+        case s    => if (!f(s) && !deadline.isOverdue()) impl() else !deadline.isOverdue()
       }
     impl()
   }
