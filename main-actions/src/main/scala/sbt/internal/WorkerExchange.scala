@@ -110,7 +110,7 @@ class WorkerProxy(
     input.close()
     serverSocket.foreach(_.close())
   def blockForExitCode(): Int =
-    if !process.isAlive then process.exitValue()
+    if !process.isAlive() then process.exitValue()
     else Fork.blockForExitCode(process)
 
   /** print a line into stdin of the worker process. */

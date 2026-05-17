@@ -192,15 +192,15 @@ case class TestServer(
     hostLog(s"wait $duration until the server is ready to respond")
     val deadline = duration.fromNow
     var nextLog = 10.seconds.fromNow
-    while (portfileIsEmpty() && !deadline.isOverdue && process.isAlive) {
-      if (nextLog.isOverdue) {
+    while (portfileIsEmpty() && !deadline.isOverdue() && process.isAlive()) {
+      if (nextLog.isOverdue()) {
         hostLog("waiting for the server...")
         nextLog = 10.seconds.fromNow
       }
       Thread.sleep(10) // Don't spam the portfile
     }
-    if (deadline.isOverdue) sys.error(s"Timeout. $portfile is not found.")
-    if (!process.isAlive) sys.error(s"Server unexpectedly terminated.")
+    if (deadline.isOverdue()) sys.error(s"Timeout. $portfile is not found.")
+    if (!process.isAlive()) sys.error(s"Server unexpectedly terminated.")
   }
   waitForPortfile(1.minute)
 
@@ -254,18 +254,18 @@ case class TestServer(
         """{ "jsonrpc": "2.0", "id": 9, "method": "sbt/exec", "params": { "commandLine": "shutdown" } }"""
       )
       val deadline = 5.seconds.fromNow
-      while (!deadline.isOverdue && process.isAlive) {
+      while (!deadline.isOverdue() && process.isAlive()) {
         Thread.sleep(10)
       }
       // We gave the server a chance to exit but it didn't within a reasonable time frame.
-      if (deadline.isOverdue && process.isAlive) {
+      if (deadline.isOverdue() && process.isAlive()) {
         process.destroy()
         val newDeadline = 10.seconds.fromNow
-        while (!newDeadline.isOverdue && process.isAlive) {
+        while (!newDeadline.isOverdue() && process.isAlive()) {
           Thread.sleep(10)
         }
       }
-      if (process.isAlive) throw new IllegalStateException(s"process $process failed to exit")
+      if (process.isAlive()) throw new IllegalStateException(s"process $process failed to exit")
     } finally {
       readThread.interrupt()
       /*
@@ -309,7 +309,7 @@ case class TestServer(
     @tailrec def impl(): Boolean =
       lines.poll(deadline.timeLeft.toMillis, TimeUnit.MILLISECONDS) match {
         case null => false
-        case s    => if (!f(s) && !deadline.isOverdue) impl() else !deadline.isOverdue()
+        case s    => if (!f(s) && !deadline.isOverdue()) impl() else !deadline.isOverdue()
       }
     impl()
   }
@@ -336,7 +336,7 @@ case class TestServer(
             case Success(value) =>
               value
             case Failure(exception) =>
-              if (deadline.isOverdue) {
+              if (deadline.isOverdue()) {
                 val ex = new TimeoutException()
                 ex.initCause(exception)
                 throw ex
@@ -357,8 +357,8 @@ case class TestServer(
         case s =>
           val s1 = s
           val correctId = s1.contains("\"id\":\"" + id + "\"")
-          if (!correctId && !deadline.isOverdue) impl()
-          else if (deadline.isOverdue)
+          if (!correctId && !deadline.isOverdue()) impl()
+          else if (deadline.isOverdue())
             throw new TimeoutException()
           else s
       }
