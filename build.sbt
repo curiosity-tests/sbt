@@ -290,11 +290,18 @@ lazy val utilInterface = (project in file("internal") / "util-interface").settin
   mimaSettings,
 )
 
-lazy val utilControl = (project in file("internal") / "util-control").settings(
-  utilCommonSettings,
-  name := "Util Control",
-  mimaSettings,
-)
+lazy val utilControl = (project in file("internal") / "util-control")
+  .settings(
+    utilCommonSettings,
+    name := "Util Control",
+    libraryDependencies ++= Seq(
+      scalacheck % Test,
+      scalaVerify % Test,
+      hedgehog % Test,
+    ),
+    mimaSettings,
+  )
+  .configure(addSbtIOForTest)
 
 lazy val utilPosition = (project in file("internal") / "util-position")
   .settings(
@@ -379,13 +386,28 @@ lazy val utilCache = project
     contrabandSettings,
     mimaSettings,
     mimaBinaryIssueFilters ++= Seq(
-      exclude[ReversedMissingMethodProblem]("sbt.util.CacheImplicits.sbt$util*")
+      exclude[ReversedMissingMethodProblem]("sbt.util.CacheImplicits.sbt$util*"),
+      exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHash"),
+      exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHashStr"),
+      exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.toFarmHashString"),
     ),
     Test / fork := true,
   )
   .configure(
     addSbtIO,
     addSbtCompilerInterface,
+  )
+
+lazy val hashBenchmark = (project in file("internal") / "hash-benchmark")
+  .dependsOn(utilControl, utilCache)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    utilCommonSettings,
+    name := "Hash Benchmark",
+    Jmh / run / javaOptions ++= Seq("-Xmx1G", "-Dfile.encoding=UTF8"),
+    libraryDependencies += blake3,
+    mimaSettings,
+    publish / skip := true,
   )
 
 // Builds on cache to provide caching for filesystem-related operations
