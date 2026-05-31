@@ -9,12 +9,9 @@
 
 package sbt.internal.util.hashing
 
-import java.io.File
-import java.nio.file.Path as NioPath
-
-trait FileHash:
-  def hash(file: File): Long
-  def hash(file: NioPath): Long
-  override def toString(): String =
-    getClass().getSimpleName()
-end FileHash
+object FarmHashConstants:
+  final val K0 = 0xc3a5c85c97cb3127L
+  final val K1 = 0xb492b66fbe98f273L
+  final val K2 = 0x9ae16a3b2f90404fL
+  final val K_MUL = 0x9ddfea08eb382d69L
+end FarmHashConstants
