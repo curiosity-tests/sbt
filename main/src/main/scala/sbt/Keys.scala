@@ -483,6 +483,7 @@ object Keys {
   val bspBuildTargetDependencySources = inputKey[Unit]("").withRank(DTask)
   val bspBuildTargetDependencySourcesItem = taskKey[DependencySourcesItem]("").withRank(DTask)
   val bspBuildTargetOutputPaths = inputKey[Unit]("").withRank(DTask)
+  @transient
   val bspBuildTargetOutputPathsItem = taskKey[OutputPathsItem]("").withRank(DTask)
   val bspBuildTargetCompile = inputKey[Unit]("").withRank(DTask)
   val bspBuildTargetCompileItem = taskKey[Int]("").withRank(DTask)
