@@ -577,7 +577,7 @@ private[sbt] object ClasspathImpl {
   ): Classpath =
     mode match
       case DependencyMode.Transitive => internalCp
-      case _ =>
+      case _                         =>
         val allowed = allowedInternalKeys(mode, projectRef, data, deps)
         internalCp.filter: entry =>
           entry.get(Keys.moduleIDStr) match
