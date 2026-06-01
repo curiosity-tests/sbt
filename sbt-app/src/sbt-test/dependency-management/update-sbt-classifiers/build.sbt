@@ -41,7 +41,6 @@ lazy val root = (project in file("."))
         "junit:junit",
         "net.java.dev.jna:jna",
         "net.java.dev.jna:jna-platform",
-        "net.openhft:zero-allocation-hashing",
         "org.checkerframework:checker-qual",
         "org.fusesource.jansi:jansi",
         "org.hamcrest:hamcrest-core",
