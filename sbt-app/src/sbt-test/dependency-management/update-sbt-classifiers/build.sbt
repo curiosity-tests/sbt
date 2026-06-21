@@ -9,4 +9,3 @@ dependencyResolution := {
 }
 
 scalaOrganization := "doesnt.exist"
-
