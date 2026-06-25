@@ -153,6 +153,37 @@ object RunnerScriptTest extends verify.BasicTestSuite with ShellScriptUtil:
     assertVersionOutput(out)
     ()
 
+  testOutput(
+    "sbt --version reports spaced sbt.version from project/build.properties (sbt 1.x)",
+    citestVariant = "citest",
+    buildPropsContents = "sbt.version = 1.12.11\n",
+  )("--version"): (out: List[String]) =>
+    val lines =
+      out.mkString(System.lineSeparator()).linesIterator.map(_.stripPrefix("[0J").trim).toList
+    assert(lines.exists(_.matches("^sbt version in this project: 1\\.12\\.11\\r?$")))
+    assert(lines.exists(_.matches("^sbt runner version: " + versionPattern + "\\r?$")))
+    ()
+
+  testOutput(
+    "sbt -v '++ 3' ci does not run native client for spaced sbt 1.x project",
+    citestVariant = "citest",
+    buildPropsContents = "sbt.version = 1.12.11\n",
+    stagedRunnerVersionOverride = "2.0.0",
+  )("-v", "++ 3", "ci"): (out: List[String]) =>
+    assert(!out.exists(_.contains("running native client")))
+    assert(out.exists(_.contains("sbt-launch.jar")))
+    ()
+
+  // Test for issue #4189: Improve -help and help commands
+  testOutput(
+    "sbt --help should show getting-started hints",
+    citestVariant = "citest",
+  )("--help"): (out: List[String]) =>
+    val helpText = out.mkString(System.lineSeparator())
+    assert(helpText.contains("Getting started with sbt"))
+    assert(helpText.contains("sbt init"))
+    assert(helpText.contains("help <command>"))
+
   testOutput("--sbt-cache")("--sbt-cache", "./cachePath"): (out: List[String]) =>
     assert(out.contains[String]("-Dsbt.global.localcache=./cachePath"))
 
