@@ -780,6 +780,10 @@ lazy val mainProj = (project in file("main"))
       exclude[DirectMissingMethodProblem]("sbt.internal.ClassStamper.stampVf"),
       exclude[DirectMissingMethodProblem]("sbt.internal.CompileInputs2.*"),
       exclude[DirectMissingMethodProblem]("sbt.internal.IncrementalTest.cacheInput"),
+      // Added optional CompileFailed context for BSP failure diagnostics (sbt#9345)
+      exclude[ReversedMissingMethodProblem](
+        "sbt.internal.server.BuildServerReporter.sendFailureReport"
+      ),
     ),
   )
   .dependsOn(lmCore, lmIvy, lmCoursierShadedPublishing)

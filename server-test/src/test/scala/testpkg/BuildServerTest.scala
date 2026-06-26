@@ -8,10 +8,13 @@
 package testpkg
 
 import sbt.internal.bsp.*
-import sbt.internal.langserver.ErrorCodes
-import sbt.IO
+// import sbt.internal.bsp.codec.JsonProtocol.given
+import sbt.internal.langserver.ErrorCodes // , LogMessageParams }
+// import sbt.internal.langserver.codec.JsonProtocol.given
+// import sbt.internal.protocol.JsonRpcNotificationMessage
 import sbt.internal.protocol.JsonRpcRequestMessage
 import sbt.internal.protocol.codec.JsonRPCProtocol.given
+import sbt.IO
 import sjsonnew.JsonWriter
 import sjsonnew.support.scalajson.unsafe.{ CompactPrinter, Converter }
 
@@ -19,6 +22,7 @@ import java.io.File
 import java.net.URI
 import java.nio.file.{ Files, Paths }
 import java.util.concurrent.atomic.AtomicInteger
+// import java.util.concurrent.TimeoutException
 import scala.concurrent.duration.*
 
 // starts svr using server-test/buildserver and perform custom server tests
