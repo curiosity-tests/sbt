@@ -2278,7 +2278,7 @@ object Defaults extends BuildCommon {
             res
           case Result.Inc(cause) =>
             val compileFailed = cause.directCause.collect { case c: CompileFailed => c }
-            reporter.sendFailureReport(ci.options.sources)
+            reporter.sendFailureReport(ci.options.sources, compileFailed)
             bspTask.notifyFailure(compileFailed)
             throw cause
       },
