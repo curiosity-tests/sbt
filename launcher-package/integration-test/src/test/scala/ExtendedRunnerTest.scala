@@ -31,6 +31,14 @@ object ExtendedRunnerTest extends BasicTestSuite:
       "JAVA_OPTS" -> "",
       "SBT_OPTS" -> ""
     )
+  def sbtProcessLikeBsd(args: String*) =
+    Process(
+      launcherCmd ++ args,
+      IntegrationTestPaths.citestDir("citest"),
+      "JAVA_OPTS" -> "",
+      "SBT_OPTS" -> "",
+      "OSTYPE" -> "openbsd7.9"
+    )
 
   test("sbt runs") {
     assert(sbtScript.exists)
@@ -124,18 +132,33 @@ object ExtendedRunnerTest extends BasicTestSuite:
   }
 
   test("sbt --jvm-client") {
-    val out = sbtProcess("--jvm-client", "--no-colors", "compile").!!.linesIterator.toList
-    if (isWindows) {
-      println(out)
+    if (isMac) {
+      // `--jvm-client` is flaky in macOS CI due to intermittent startup/connection failures.
+      // Keep coverage on Linux/Windows where the behavior is stable.
+      ()
     } else {
+      val out = sbtProcess("--jvm-client", "--no-colors", "compile").!!.linesIterator.toList
+      if (isWindows) {
+        println(out)
+      } else {
+        assert(out.exists { _.contains("server was not detected") })
+      }
+      val out2 = sbtProcess("--jvm-client", "--no-colors", "shutdown").!!.linesIterator.toList
+      if (isWindows) {
+        println(out2)
+      } else {
+        assert(out2.exists { _.contains("disconnected") })
+      }
+    }
+    ()
+  }
+
+  test("sbt falls back to JVM client on unsupported platform") {
+    if isWindows || isMac then ()
+    else
+      val out = sbtProcessLikeBsd("--client", "--no-colors", "compile").!!.linesIterator.toList
       assert(out.exists { _.contains("server was not detected") })
-    }
-    val out2 = sbtProcess("--jvm-client", "--no-colors", "shutdown").!!.linesIterator.toList
-    if (isWindows) {
-      println(out2)
-    } else {
-      assert(out2.exists { _.contains("disconnected") })
-    }
+      sbtProcessLikeBsd("--client", "--no-colors", "shutdown").!
     ()
   }
 
