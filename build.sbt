@@ -786,6 +786,7 @@ lazy val mainProj = (project in file("main"))
       ),
       exclude[IncompatibleMethTypeProblem]("sbt.internal.GlobalPluginData.*"),
       exclude[IncompatibleResultTypeProblem]("sbt.internal.GlobalPluginData.*"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.GlobalPluginData.*"),
     ),
   )
   .dependsOn(lmCore, lmIvy, lmCoursierShadedPublishing)
