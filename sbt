@@ -554,6 +554,14 @@ checkWorkingDirectory() {
   fi
 }
 
+runShutdownAll() {
+  local sbt_processes=( $(jps -v | grep sbt-launch | cut -f1 -d ' ') )
+  for procId in "${sbt_processes[@]}"; do
+    kill -9 $procId
+  done
+  echoerr "shutdown ${#sbt_processes[@]} sbt processes"
+}
+
 run() {
   # Copy preloaded repo to user's preloaded directory
   syncPreloaded
@@ -590,12 +598,6 @@ run() {
     echoerr ""
     echoerr "[info] sbt runner (sbt-the-shell-script) is a runner to run any declared version of sbt."
     echoerr "[info] Actual version of the sbt is declared using project/build.properties for each build."
-  elif [[ $shutdownall ]]; then
-    local sbt_processes=( $(jps -v | grep sbt-launch | cut -f1 -d ' ') )
-    for procId in "${sbt_processes[@]}"; do
-      kill -9 $procId
-    done
-    echoerr "shutdown ${#sbt_processes[@]} sbt processes"
   else
     checkWorkingDirectory
     # run sbt
@@ -928,6 +930,11 @@ vlog "[sbt_options] $(declare -p sbt_options)"
 # Handle --script-version before native client so it works on sbt 2.x project dirs (#8711)
 if [[ $print_sbt_script_version ]]; then
   echo "$init_sbt_version"
+  exit 0
+fi
+
+if [[ $shutdownall ]]; then
+  runShutdownAll
   exit 0
 fi
 
