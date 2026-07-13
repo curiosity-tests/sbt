@@ -91,6 +91,7 @@ final class NetworkChannel(
   private val pendingWrites = new LinkedBlockingQueue[(Array[Byte], Boolean)]()
   private val attached = new AtomicBoolean(false)
   private val alive = new AtomicBoolean(true)
+  private val isCanceled = new AtomicBoolean(false)
   private[sbt] def isInteractive = interactive.get
   private val interactive = new AtomicBoolean(false)
   private[sbt] def setInteractive(id: String, value: Boolean) = {
@@ -108,6 +109,10 @@ final class NetworkChannel(
   private[sbt] def prompt(): Unit = {
     interactive.set(true)
     jsonRpcNotify(promptChannel, "")
+  }
+  override def prompt(e: ConsolePromptEvent): Unit = {
+    isCanceled.set(false)
+    super.prompt(e)
   }
   private[sbt] def write(byte: Byte) = inputBuffer.add(byte.toInt)
 
@@ -532,6 +537,8 @@ final class NetworkChannel(
                 StandardMain.exchange.currentExec.exists(_.source.exists(_.channelName == name)))
             ) {
               runningEngine.cancelAndShutdown()
+              isCanceled.set(true)
+              discardPending()
 
               respondResult(
                 ExecStatusEvent(
@@ -625,16 +632,19 @@ final class NetworkChannel(
   }
 
   /** Notify to Language Server's client. */
-  private[sbt] def jsonRpcNotify[A: JsonFormat](method: String, params: A): Unit = {
-    val m =
-      JsonRpcNotificationMessage("2.0", method, Option(Converter.toJson[A](params).get))
-    if (method != Serialization.systemOut) {
-      forceFlush()
-      log.debug(s"jsonRpcNotify: $m")
+  private[sbt] def jsonRpcNotify[A: JsonFormat](method: String, params: A): Unit =
+    if (isCanceled.get && NetworkChannel.isCanceledOutput(method))
+      ()
+    else {
+      val m =
+        JsonRpcNotificationMessage("2.0", method, Option(Converter.toJson[A](params).get))
+      if (method != Serialization.systemOut) {
+        forceFlush()
+        log.debug(s"jsonRpcNotify: $m")
+      }
+      val bytes = Serialization.serializeNotificationMessage(m)
+      publishBytes(bytes)
     }
-    val bytes = Serialization.serializeNotificationMessage(m)
-    publishBytes(bytes)
-  }
 
   /** Notify to Language Server's client. */
   private[sbt] def jsonRpcRequest[A: JsonFormat](id: String, method: String, params: A): Unit = {
@@ -675,6 +685,11 @@ final class NetworkChannel(
 
   import scala.jdk.CollectionConverters.*
   private val outputBuffer = new LinkedBlockingQueue[Byte]
+  private def discardPending(): Unit = {
+    pendingWrites.clear()
+    outputBuffer.synchronized(outputBuffer.clear())
+  }
+
   // Batches writes to the client at most once per 20ms to cut terminal flicker (see
   // CoalescingFlusher). forceFlush drains now while leaving the timer live.
   private val flusher =
@@ -942,6 +957,9 @@ final class NetworkChannel(
 }
 
 object NetworkChannel {
+  private[server] def isCanceledOutput(method: String): Boolean =
+    method == Serialization.systemOut || method == Serialization.systemErr
+
   private[sbt] def cancel(
       execID: Option[String],
       id: String,
