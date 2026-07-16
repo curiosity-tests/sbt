@@ -15,7 +15,7 @@ object Dependencies {
   // sbt modules
   private val ioVersion = nightlyVersion.getOrElse("1.12.2")
   private val lmVersion =
-    sys.props.get("sbt.build.lm.version").orElse(nightlyVersion).getOrElse("1.12.2")
+    sys.props.get("sbt.build.lm.version").orElse(nightlyVersion).getOrElse("1.12.3")
   val zincVersion = nightlyVersion.getOrElse("1.12.0")
 
   private val sbtIO = "org.scala-sbt" %% "io" % ioVersion
@@ -23,7 +23,7 @@ object Dependencies {
   private val libraryManagementCore = "org.scala-sbt" %% "librarymanagement-core" % lmVersion
   private val libraryManagementIvy = "org.scala-sbt" %% "librarymanagement-ivy" % lmVersion
 
-  val launcherVersion = "1.5.2"
+  val launcherVersion = "1.6.2"
   val launcherInterface = "org.scala-sbt" % "launcher-interface" % launcherVersion
   val rawLauncher = "org.scala-sbt" % "launcher" % launcherVersion
   val testInterface = "org.scala-sbt" % "test-interface" % "1.0"
@@ -81,7 +81,7 @@ object Dependencies {
   val lmCoursierShaded = "io.get-coursier" %% "lm-coursier-shaded" % "2.1.13"
 
   def sjsonNew(n: String) =
-    Def.setting("com.eed3si9n" %% n % "0.10.1") // contrabandSjsonNewVersion.value
+    Def.setting("com.eed3si9n" %% n % "0.10.3") // contrabandSjsonNewVersion.value
   val sjsonNewScalaJson = sjsonNew("sjson-new-scalajson")
   val sjsonNewMurmurhash = sjsonNew("sjson-new-murmurhash")
 
