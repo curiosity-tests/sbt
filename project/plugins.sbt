@@ -14,3 +14,4 @@ addSbtPlugin("org.scalameta" % "sbt-native-image" % "0.3.1")
 addDependencyTreePlugin
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.10.4")
+addSbtPlugin("com.eed3si9n" % "sbt-salad-days" % "0.2.0")
