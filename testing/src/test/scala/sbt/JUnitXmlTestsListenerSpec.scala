@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference
 import testing.{ Event as TEvent, OptionalThrowable, Status as TStatus, TestSelector }
 import util.{ AbstractLogger, Level, ControlEvent, LogEvent }
 import sbt.protocol.testing.TestResult
+import sbt.io.IO
 import verify.BasicTestSuite
 
 object JUnitXmlTestsListenerSpec extends BasicTestSuite:
@@ -101,5 +102,55 @@ object JUnitXmlTestsListenerSpec extends BasicTestSuite:
       if tempDir.exists() then
         tempDir.listFiles().foreach(_.delete())
         tempDir.delete()
+
+  test("JUnitXmlTestsListener should release the suite from threads that inherited it"):
+    IO.withTemporaryDirectory: tempDir =>
+      val listener = new JUnitXmlTestsListener(tempDir, false, null)
+      listener.doInit()
+
+      def event(name: String) = new TEvent:
+        def fullyQualifiedName = s"InheritSuite.$name"
+        def duration() = 1L
+        def status = TStatus.Success
+        def fingerprint = null
+        def selector = new TestSelector(name)
+        def throwable = new OptionalThrowable()
+
+      listener.startGroup("InheritSuite")
+
+      // A thread created *while* the suite is set inherits the suite cell, standing in for a
+      // pooled worker spawned by an async test framework during the run.
+      val suiteWritten = new java.util.concurrent.CountDownLatch(1)
+      val childDone = new java.util.concurrent.CountDownLatch(1)
+      val endGroupOutcome = new AtomicReference[Option[Throwable]](None)
+      val testEventOutcome = new AtomicReference[Option[Throwable]](None)
+      val child = new Thread(() =>
+        suiteWritten.await()
+        // The inherited cell must no longer reach a TestSuite, so the strict path fails...
+        endGroupOutcome.set(
+          scala.util.Try(listener.endGroup("InheritSuite", TestResult.Passed)).failed.toOption
+        )
+        // ...while a late event is dropped rather than raised.
+        testEventOutcome.set(
+          scala.util.Try(listener.testEvent(sbt.TestEvent(Seq(event("late"))))).failed.toOption
+        )
+        childDone.countDown()
+      )
+      child.setDaemon(true)
+      child.start()
+
+      listener.testEvent(sbt.TestEvent(Seq(event("testMethod"))))
+      listener.endGroup("InheritSuite", TestResult.Passed)
+      suiteWritten.countDown()
+      assert(childDone.await(30, java.util.concurrent.TimeUnit.SECONDS), "child thread timed out")
+
+      assert(
+        endGroupOutcome.get().isDefined,
+        "a thread that inherited the suite could still reach it after writeSuite"
+      )
+      assert(
+        testEventOutcome.get().isEmpty,
+        s"a late test event should be dropped, but threw: ${testEventOutcome.get()}"
+      )
 
 end JUnitXmlTestsListenerSpec
