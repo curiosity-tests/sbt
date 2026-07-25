@@ -391,6 +391,7 @@ lazy val utilCache = project
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHash"),
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHashStr"),
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.toFarmHashString"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.util.CacheEventSummary#Data.*"),
     ),
     Test / fork := true,
   )
