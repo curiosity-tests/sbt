@@ -13,6 +13,7 @@ import java.nio.file.Files
 
 import sbt.internal.classpath.ClassLoaderCache
 import sbt.io.IO
+import scala.util.Using
 import verify.BasicTestSuite
 
 object ClassLoaderCacheTest extends BasicTestSuite:

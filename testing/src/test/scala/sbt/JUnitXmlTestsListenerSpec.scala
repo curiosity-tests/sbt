@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference
 import testing.{ Event as TEvent, OptionalThrowable, Status as TStatus, TestSelector }
 import util.{ AbstractLogger, Level, ControlEvent, LogEvent }
 import sbt.protocol.testing.TestResult
+import sbt.io.IO
 import verify.BasicTestSuite
 
 object JUnitXmlTestsListenerSpec extends BasicTestSuite:
