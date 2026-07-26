@@ -764,34 +764,14 @@ object Defaults extends BuildCommon {
         clean.value
         (ThisBuild / publish / clean).value
       },
-      scalaCompilerBridgeBin := Def
-        .ifS(Def.task {
+      scalaCompilerBridgeBin := Def.uncached {
+        if {
           val sv = scalaVersion.value
-          val hasSbtBridge = ScalaArtifacts.isScala3(sv) || ZincLmUtil.hasScala2SbtBridge(sv)
+          val hasSbtBridge = ScalaArtifacts.isScala3(sv) || ScalaArtifacts.hasScala2SbtBridge(sv)
           hasSbtBridge
-        })(Def.cachedTask {
-          // Use scalaDynVersion to resolve dynamic versions (e.g., "3-latest.candidate" -> "3.8.1-RC1")
-          val sv = scalaDynVersion.value
-          val conv = fileConverter.value
-          val s = streams.value
-          val t = target.value
-          val r = dependencyResolution.value
-          val uc = updateConfiguration.value
-          val jar = ZincLmUtil.fetchDefaultBridgeModule(
-            scalaOrganization.value,
-            sv,
-            r,
-            uc,
-            (update / unresolvedWarningConfiguration).value,
-            s.log
-          )
-          val out = t / "compiler-bridge" / jar.getName()
-          val outVf = conv.toVirtualFile(out.toPath())
-          IO.copyFile(jar, out)
-          Def.declareOutput(outVf)
-          Vector(outVf: HashedVirtualFileRef)
-        })(Def.task(Vector.empty))
-        .value,
+        } then Compiler.compilerBridgeFromUpdate.value
+        else Vector.empty
+      },
       scalaCompilerBridgeJars := (Def.taskDyn {
         val s = streams.value
         val b = scalaCompilerBridgeBin.value
@@ -1365,6 +1345,7 @@ object Defaults extends BuildCommon {
       )
     )
   }
+
   def forkOptionsTask: Initialize[Task[ForkOptions]] =
     Def.task {
       val canUseArgumentsFile = sys.props
@@ -1382,6 +1363,10 @@ object Defaults extends BuildCommon {
         canUseArgumentsFile = Some(canUseArgumentsFile)
       )
     }
+
+  /** Fork options for run-like tasks: the forked process inherits sbt's working directory. */
+  private[sbt] def runForkOptionsTask: Initialize[Task[ForkOptions]] =
+    Def.task(forkOptionsTask.value.withWorkingDirectory(None))
 
   def testExecutionTask(task: Scoped): Initialize[Task[Tests.Execution]] =
     Def.task {
@@ -2611,7 +2596,7 @@ object Defaults extends BuildCommon {
   private lazy val newRunnerSettings: Seq[Setting[?]] =
     Seq(
       runner := Def.uncached(ClassLoaders.runner.value),
-      forkOptions := Def.uncached(forkOptionsTask.value)
+      forkOptions := Def.uncached(runForkOptionsTask.value)
     )
 
   lazy val baseTasks: Seq[Setting[?]] = projectTasks ++ packageBase
@@ -3349,7 +3334,7 @@ object Classpaths {
     ivyConfigurations ++= Configurations.auxiliary,
     ivyConfigurations ++= {
       if (managedScalaInstance.value && scalaHome.value.isEmpty)
-        Configurations.ScalaTool :: Configurations.ScalaDocTool :: Configurations.ScalaReplTool :: Nil
+        Configurations.ScalaTool :: Configurations.ScalaDocTool :: Configurations.ScalaReplTool :: Configurations.ZincTool :: Nil
       else Nil
     },
     // Coursier needs these
@@ -3586,6 +3571,7 @@ object Classpaths {
         then Nil
         else
           ScalaArtifacts.toolDependencies(scalaOrg, version) ++
+            ScalaArtifacts.compilerBridgeDependencies(scalaOrg, version) ++
             ScalaArtifacts.docToolDependencies(scalaOrg, version) ++
             ScalaArtifacts.replToolDependencies(scalaOrg, version)
       allToolDeps.map(_.platform(Platform.jvm)) ++ pluginAdjust
@@ -4969,7 +4955,7 @@ trait BuildExtra extends BuildCommon with DefExtra {
           }
         }
       }.evaluated
-    ) ++ inTask(scoped)((config / forkOptions) := Def.uncached(forkOptionsTask.value))
+    ) ++ inTask(scoped)((config / forkOptions) := Def.uncached(runForkOptionsTask.value))
   }
 
   // public API
@@ -4991,7 +4977,7 @@ trait BuildExtra extends BuildCommon with DefExtra {
             r.run(mainClass, cp.files, arguments, s.log).get
           }
       }.value
-    ) ++ inTask(scoped)((config / forkOptions) := Def.uncached(forkOptionsTask.value))
+    ) ++ inTask(scoped)((config / forkOptions) := Def.uncached(runForkOptionsTask.value))
 
   def initScoped[T](sk: ScopedKey[?], i: Initialize[T]): Initialize[T] =
     initScope(fillTaskAxis(sk.scope, sk.key), i)

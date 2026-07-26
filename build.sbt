@@ -15,9 +15,9 @@ ThisBuild / version := {
   nightlyVersion.getOrElse(v)
 }
 // update sbt.sh at root
-ThisBuild / Utils.sbtnVersion := "2.0.0-b4d628dd"
-ThisBuild / Utils.version2_13 := "2.0.0-SNAPSHOT"
+ThisBuild / Utils.sbtnVersion := "2.0.0-a0c4773a"
 ThisBuild / versionScheme := Some("early-semver")
+ThisBuild / Utils.version2_13 := "2.0.0-SNAPSHOT"
 ThisBuild / scalafmtOnCompile := !(Global / insideCI).value
 ThisBuild / Test / scalafmtOnCompile := !(Global / insideCI).value
 // ThisBuild / turbo := true
@@ -391,6 +391,7 @@ lazy val utilCache = project
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHash"),
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.farmHashStr"),
       exclude[DirectMissingMethodProblem]("sbt.util.HashUtil.toFarmHashString"),
+      exclude[DirectMissingMethodProblem]("sbt.internal.util.CacheEventSummary#Data.*"),
     ),
     Test / fork := true,
   )
@@ -566,8 +567,11 @@ lazy val remoteCacheProj = (project in file("sbt-remote-cache"))
     name := "sbt-remote-cache",
     pluginCrossBuild / sbtVersion := version.value,
     publishMavenStyle := true,
-    mimaSettings,
     libraryDependencies ++= Seq(remoteapis, scalaVerify % Test),
+    mimaSettings,
+    mimaBinaryIssueFilters ++= Seq(
+      exclude[DirectMissingMethodProblem]("sbt.internal.GrpcActionCacheStore.this"),
+    ),
   )
 
 // Implementation and support code for defining actions.
