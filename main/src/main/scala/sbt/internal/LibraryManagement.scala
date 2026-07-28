@@ -126,7 +126,7 @@ private[sbt] object LibraryManagement {
 
     /* Skip resolve if last output exists, otherwise error. */
     def skipResolve(cache: CacheStore)(inputs: UpdateInputs): UpdateReport = {
-      import sbt.librarymanagement.LibraryManagementCodec.given
+      import UpdateReportPersistence.CacheCodec.given
       val cachedReport = Tracked
         .lastOutput[UpdateInputs, UpdateReport](cache) {
           case (_, Some(out)) => out
@@ -143,8 +143,8 @@ private[sbt] object LibraryManagement {
       ur.withStats(ur.stats.withCached(true))
 
     def doResolve(cache: CacheStore): UpdateInputs => UpdateReport = {
+      import UpdateReportPersistence.CacheCodec.given
       val doCachedResolve = { (inChanged: Boolean, updateInputs: UpdateInputs) =>
-        import sbt.librarymanagement.LibraryManagementCodec.given
         try
           var isCached = false
           val report = Tracked
@@ -173,7 +173,6 @@ private[sbt] object LibraryManagement {
             log.trace(t)
             resolvedAgain
       }
-      import LibraryManagementCodec.given
       Tracked.inputChanged(cacheStoreFactory.make("inputs"))(doCachedResolve)
     }
 
@@ -279,7 +278,7 @@ private[sbt] object LibraryManagement {
 
   val moduleIdJsonKeyFormat: sjsonnew.JsonKeyFormat[ModuleID] =
     new sjsonnew.JsonKeyFormat[ModuleID] {
-      import LibraryManagementCodec.given
+      import UpdateReportPersistence.CacheCodec.given
       import sjsonnew.support.scalajson.unsafe.*
       val moduleIdFormat: JsonFormat[ModuleID] = implicitly[JsonFormat[ModuleID]]
       def write(key: ModuleID): String =
@@ -423,7 +422,7 @@ private[sbt] object LibraryManagement {
   def withExcludes(out: File, classifiers: Seq[String], lock: xsbti.GlobalLock)(
       f: Map[ModuleID, Vector[ConfigRef]] => UpdateReport
   ): UpdateReport = {
-    import sbt.librarymanagement.LibraryManagementCodec.given
+    import UpdateReportPersistence.CacheCodec.given
     import sbt.util.FileBasedStore
     val exclName = "exclude_classifiers"
     val file = out / exclName
