@@ -43,6 +43,7 @@ object LintUnused {
       onUnload,
       sbt.nio.Keys.watchTriggers,
       serverConnectionType,
+      serverPort,
       serverIdleTimeout,
       shellPrompt,
       sonaDeploymentName,
