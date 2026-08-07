@@ -39,12 +39,22 @@ private[sbt] object LanguageServerProtocol {
     ServerCapabilities(
       textDocumentSync = TextDocumentSyncOptions(true, 0, false, false, SaveOptions(false)),
       hoverProvider = false,
-      definitionProvider = true
+      definitionProvider = false
     )
   }
 
   def handler(converter: FileConverter): ServerHandler = ServerHandler { callback =>
     import callback._
+
+    def checkAuthenticated(r: JsonRpcRequestMessage)(f: => Unit): Unit =
+      if (!isAuthenticated)
+        jsonRpcRespondError(
+          Some(r.id),
+          ErrorCodes.InvalidRequest,
+          s"'${r.method}' is not allowed before authentication."
+        )
+      else f
+
     ServerIntent(
       onRequest = {
         case r: JsonRpcRequestMessage if r.method == "initialize" =>
@@ -66,33 +76,38 @@ private[sbt] object LanguageServerProtocol {
           if (!opt.skipAnalysis.getOrElse(false)) appendExec("collectAnalyses", None)
           jsonRpcRespond(InitializeResult(serverCapabilities), Some(r.id))
 
-        case r: JsonRpcRequestMessage if r.method == "textDocument/definition" =>
-          val _ = Definition.lspDefinition(json(r), r.id, CommandSource(name), converter, log)(
-            StandardMain.executionContext
-          )
-
         case r: JsonRpcRequestMessage if r.method == "sbt/exec" =>
-          val param = Converter.fromJson[SbtExecParams](json(r)).get
-          val _ = appendExec(param.commandLine, Some(r.id))
+          checkAuthenticated(r) {
+            val param = Converter.fromJson[SbtExecParams](json(r)).get
+            val _ = appendExec(param.commandLine, Some(r.id))
+          }
 
         case r: JsonRpcRequestMessage if r.method == "sbt/setting" =>
-          val param = Converter.fromJson[Q](json(r)).get
-          onSettingQuery(Option(r.id), param)
+          checkAuthenticated(r) {
+            val param = Converter.fromJson[Q](json(r)).get
+            onSettingQuery(Option(r.id), param)
+          }
 
         case r: JsonRpcRequestMessage if r.method == "sbt/cancelRequest" =>
-          val param = Converter.fromJson[CancelRequestParams](json(r)).get
-          onCancellationRequest(Option(r.id), param)
+          checkAuthenticated(r) {
+            val param = Converter.fromJson[CancelRequestParams](json(r)).get
+            onCancellationRequest(Option(r.id), param)
+          }
 
         case r: JsonRpcRequestMessage if r.method == "sbt/completion" =>
-          import sbt.protocol.codec.JsonProtocol._
-          val param = Converter.fromJson[CP](json(r)).get
-          onCompletionRequest(Option(r.id), param)
+          checkAuthenticated(r) {
+            import sbt.protocol.codec.JsonProtocol._
+            val param = Converter.fromJson[CP](json(r)).get
+            onCompletionRequest(Option(r.id), param)
+          }
 
       },
       onResponse = PartialFunction.empty,
       onNotification = {
         case n: JsonRpcNotificationMessage if n.method == "textDocument/didSave" =>
-          val _ = appendExec(";Test/compile; collectAnalyses", None)
+          if (isAuthenticated) {
+            val _ = appendExec(";Test/compile; collectAnalyses", None)
+          } else log.warn(s"ignoring '${n.method}' before authentication")
       }
     )
   }

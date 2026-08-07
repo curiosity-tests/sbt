@@ -786,6 +786,7 @@ lazy val commandProj = (project in file("main-command"))
     Compile / generateContrabands / contrabandFormatsForType := ContrabandConfig.getFormats,
     mimaSettings,
     mimaBinaryIssueFilters ++= Vector(
+      exclude[ReversedMissingMethodProblem]("sbt.internal.server.ServerCallback.*"),
       exclude[DirectMissingMethodProblem]("sbt.Exit.apply"),
       exclude[DirectMissingMethodProblem]("sbt.Reboot.apply"),
       exclude[DirectMissingMethodProblem]("sbt.TemplateResolverInfo.apply"),

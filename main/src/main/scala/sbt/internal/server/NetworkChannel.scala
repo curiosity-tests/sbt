@@ -84,6 +84,7 @@ final class NetworkChannel(
   private val delimiter: Byte = '\n'.toByte
   private val out = connection.getOutputStream
   private var initialized = false
+  private var authenticated = false
 
   /** Reference to the client-side custom options
    */
@@ -137,6 +138,7 @@ final class NetworkChannel(
     def name: String = self.name
     private[sbt] def authOptions: Set[ServerAuthentication] = self.authOptions
     private[sbt] def authenticate(token: String): Boolean = self.authenticate(token)
+    private[sbt] def isAuthenticated: Boolean = self.isAuthenticated
     private[sbt] def setInitialized(value: Boolean): Unit = self.setInitialized(value)
     private[sbt] def setInitializeOption(opts: InitializeOption): Unit =
       self.setInitializeOption(opts)
@@ -157,7 +159,14 @@ final class NetworkChannel(
       case _          => false
     }
 
-  protected def authenticate(token: String): Boolean = instance.authenticate(token)
+  protected def authenticate(token: String): Boolean = {
+    val result = instance.authenticate(token)
+    if (result) authenticated = true
+    result
+  }
+
+  private[sbt] def isAuthenticated: Boolean =
+    authenticated || authOptions.isEmpty
 
   protected def setInitialized(value: Boolean): Unit = initialized = value
 
