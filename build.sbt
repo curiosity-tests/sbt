@@ -1216,6 +1216,7 @@ lazy val lmCore = (project in file("lm-core"))
     lmTestSettings,
     name := "librarymanagement-core",
     contrabandSjsonNewVersion := sjsonNewVersion,
+    Compile / generateContrabands / contrabandCodecParents += "sbt.librarymanagement.MemoizedFileFormats",
     libraryDependencies ++= Seq(
       jsch,
       // scalaReflect,
