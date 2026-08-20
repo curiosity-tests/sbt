@@ -239,23 +239,35 @@ final class NetworkChannel(
     def handleBody(chunk: Seq[Byte]): Unit = {
       Serialization.deserializeJsonMessage(chunk) match {
         case Right(req: JsonRpcRequestMessage) =>
-          try {
-            registerRequest(req)
-            onRequestMessage(req)
-          } catch {
-            case LangServerError(code, message) =>
-              log.debug(s"sending error: $code: $message")
-              respondError(code, message, Some(req.id))
-          }
+          if (!isAuthenticated && !NetworkChannel.isPreAuthRequestAllowed(req.method))
+            jsonRpcRespondError(
+              req.id,
+              JsonRpcResponseError(
+                ErrorCodes.InvalidRequest,
+                s"'${req.method}' is not allowed before authentication."
+              )
+            )
+          else
+            try {
+              registerRequest(req)
+              onRequestMessage(req)
+            } catch {
+              case LangServerError(code, message) =>
+                log.debug(s"sending error: $code: $message")
+                respondError(code, message, Some(req.id))
+            }
         case Right(res: JsonRpcResponseMessage) =>
           onResponseMessage(res)
         case Right(ntf: JsonRpcNotificationMessage) =>
-          try {
-            onNotification(ntf)
-          } catch {
-            case LangServerError(code, message) =>
-              logMessage("error", s"error $code while handling notification: $message")
-          }
+          if (!isAuthenticated)
+            log.debug(s"ignoring '${ntf.method}' before authentication")
+          else
+            try {
+              onNotification(ntf)
+            } catch {
+              case LangServerError(code, message) =>
+                logMessage("error", s"error $code while handling notification: $message")
+            }
         case Right(msg) =>
           log.debug(s"unhandled message: $msg")
         case Left(errorDesc) =>
@@ -909,10 +921,18 @@ final class NetworkChannel(
 }
 
 object NetworkChannel {
+  // Belt and suspenders: even with per-handler checks and BSP disabled over TCP, reject every
+  // request other than the authenticating handshake, and every notification, until the channel
+  // is authenticated. Over the default Local transport isAuthenticated is always true, so this
+  // is a no-op there.
+  private[server] def isPreAuthRequestAllowed(method: String): Boolean =
+    method == "initialize"
+
   sealed trait ChannelState
   case object SingleLine extends ChannelState
   case object InHeader extends ChannelState
   case object InBody extends ChannelState
+
   private[sbt] def cancel(
       execID: Option[String],
       id: String,
