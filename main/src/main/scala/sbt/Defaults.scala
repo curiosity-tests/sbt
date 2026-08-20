@@ -627,8 +627,9 @@ object Defaults extends BuildCommon {
     sources := Classpaths.concatDistinct(unmanagedSources, managedSources).value,
     sourcesVF := Def.uncached {
       val conv = fileConverter.value
-      sources.value.toVector.map: x =>
+      val vs = sources.value.toVector.map: x =>
         (conv.toVirtualFile(x.toPath()): HashedVirtualFileRef)
+      vs.sortBy(_.id)
     },
   )
   lazy val resourceConfigPaths = Seq(
@@ -1942,7 +1943,7 @@ object Defaults extends BuildCommon {
   lazy val packageConfigurationTask: Initialize[Task[Pkg.Configuration]] =
     Def.task {
       Pkg.Configuration(
-        mappings.value,
+        mappings.value.sortBy(_._2),
         artifactPath.value,
         packageOptions.value,
       )
