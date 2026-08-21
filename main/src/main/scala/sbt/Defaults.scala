@@ -429,18 +429,32 @@ object Defaults extends BuildCommon {
     // The virtual file value cache needs to be global or sbt will run out of direct byte buffer memory.
     classpathDefinesClassCache := VirtualFileValueCache.definesClassCache(fileConverter.value),
     fullServerHandlers := {
-      Seq(
-        LanguageServerProtocol.handler(fileConverter.value),
-        BuildServerProtocol.handler(
-          loadedBuild.value,
-          bspFullWorkspace.value,
-          sbtVersion.value,
-          semanticdbEnabled.value,
-          semanticdbVersion.value
-        ),
-        VirtualTerminal.handler,
-        CommandExchange.idleHandler,
-      ) ++ serverHandlers.value :+ ServerHandler.fallback
+      // BSP has no authentication, so over TCP its handlers would be reachable without the
+      // token handshake the other language-server calls require. Disable it there.
+      val bspSupported = serverConnectionType.value != ConnectionType.Tcp
+      if (!bspSupported)
+        sLog.value.warn(
+          "BSP is not supported when serverConnectionType is Tcp; disabling the Build Server " +
+            "Protocol handler for this session."
+        )
+      val bspHandler =
+        if (bspSupported)
+          Seq(
+            BuildServerProtocol.handler(
+              loadedBuild.value,
+              bspFullWorkspace.value,
+              sbtVersion.value,
+              semanticdbEnabled.value,
+              semanticdbVersion.value
+            )
+          )
+        else Nil
+      (Seq(LanguageServerProtocol.handler(fileConverter.value)) ++
+        bspHandler ++
+        Seq(
+          VirtualTerminal.handler,
+          CommandExchange.idleHandler,
+        )) ++ serverHandlers.value :+ ServerHandler.fallback
     },
     timeWrappedStamper := Stamps
       .timeWrapBinaryStamps(Stamps.uncachedStamps(fileConverter.value), fileConverter.value),
@@ -627,8 +641,9 @@ object Defaults extends BuildCommon {
     sources := Classpaths.concatDistinct(unmanagedSources, managedSources).value,
     sourcesVF := Def.uncached {
       val conv = fileConverter.value
-      sources.value.toVector.map: x =>
+      val vs = sources.value.toVector.map: x =>
         (conv.toVirtualFile(x.toPath()): HashedVirtualFileRef)
+      vs.sortBy(_.id)
     },
   )
   lazy val resourceConfigPaths = Seq(
@@ -951,9 +966,10 @@ object Defaults extends BuildCommon {
         compileOptions := Def.uncached {
           val opts = (compile / compileOptions).value
           val cp0 = dependencyClasspath.value
-          val cp1 = backendOutput.value +: data(cp0)
           val converter = fileConverter.value
-          val cp = cp1.map(converter.toPath).map(converter.toVirtualFile)
+          // backendOutput is a settingKey: its listing is captured at project load, so re-convert
+          val cp = converter.toVirtualFile(converter.toPath(backendOutput.value)) +:
+            data(cp0).map(converter.toVirtualFile)
           opts.withClasspath(cp.toArray)
         }
       )
@@ -1941,7 +1957,7 @@ object Defaults extends BuildCommon {
   lazy val packageConfigurationTask: Initialize[Task[Pkg.Configuration]] =
     Def.task {
       Pkg.Configuration(
-        mappings.value,
+        mappings.value.sortBy(_._2),
         artifactPath.value,
         packageOptions.value,
       )
@@ -2399,8 +2415,8 @@ object Defaults extends BuildCommon {
       compileOptions := Def.uncached {
         val c = fileConverter.value
         val cp0 = classpathTask.value
-        val cp1 = backendOutput.value +: data(cp0)
-        val cp = cp1.map(c.toPath).map(c.toVirtualFile)
+        // backendOutput is a settingKey: its listing is captured at project load, so re-convert
+        val cp = c.toVirtualFile(c.toPath(backendOutput.value)) +: data(cp0).map(c.toVirtualFile)
         val vs0 = sourcesVF.value
         val vs = vs0.toVector.map: x =>
           c.toVirtualFile(c.toPath(x))
