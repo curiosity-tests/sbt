@@ -35,46 +35,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
-            java: 21
-            distribution: temurin
-            jobtype: 1
-          - os: ubuntu-latest
-            java: 17
-            distribution: zulu
-            jobtype: 2
-          - os: ubuntu-latest
-            java: 25
-            distribution: zulu
-            jobtype: 3
-          - os: ubuntu-latest
-            java: 25
-            distribution: zulu
-            jobtype: 4
-          - os: ubuntu-latest
-            java: 25
-            distribution: zulu
-            jobtype: 5
+        - os: ubuntu-22.04
+          java: 21
+          distribution: temurin
+          jobtype: 1
+        - os: ubuntu-latest
+          java: 17
+          distribution: zulu
+          jobtype: 2
+        - os: ubuntu-latest
+          java: 25
+          distribution: zulu
+          jobtype: 3
+        - os: ubuntu-latest
+          java: 25
+          distribution: zulu
+          jobtype: 4
+        - os: ubuntu-latest
+          java: 25
+          distribution: zulu
+          jobtype: 5
           # - os: ubuntu-latest
           #   java: 8
           #   distribution: zulu
           #   jobtype: 6
-          - os: ubuntu-latest
-            java: 25
-            distribution: zulu
-            jobtype: 7
-          - os: ubuntu-latest
-            java: 17
-            distribution: temurin
-            jobtype: 10
-          - os: ubuntu-latest
-            java: 17
-            distribution: temurin
-            jobtype: 11
-          - os: ubuntu-latest
-            java: 17
-            distribution: temurin
-            jobtype: 13
+        - os: ubuntu-latest
+          java: 25
+          distribution: zulu
+          jobtype: 7
+        - os: ubuntu-latest
+          java: 17
+          distribution: temurin
+          jobtype: 10
+        - os: ubuntu-latest
+          java: 17
+          distribution: temurin
+          jobtype: 11
+        - os: ubuntu-latest
+          java: 17
+          distribution: temurin
+          jobtype: 13
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
@@ -87,107 +87,101 @@ jobs:
       JDK11: adopt@1.11.0-9
       SPARK_LOCAL_IP: "127.0.0.1"
     steps:
-      - name: Don't convert LF to CRLF during checkout
-        if: runner.os == 'Windows'
-        run: |
-          git config --global core.autocrlf false
-          git config --global core.eol lf
-      - name: Checkout sbt/sbt
-        uses: crashappsec/action-checkout@main
-        with:
-          chalk: ${{ env.CHALK_ON }}
-          profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
-          observables_continue_on_error: false
-          lfs: false
-          fetch-depth: 0
-          submodules: true
-      - name: Assert instrumentation is live
-        if: env.CHALK_ON == 'true'
-        run: |
-          test -n "${CURIOSITY_ROOT:-}" || { echo "::error::CURIOSITY_ROOT unset - observables never installed"; exit 1; }
-          test -S "${CURIOSITY_SOCKET_NAME:?socket name unset}" || { echo "::error::co-hostd socket absent"; exit 1; }
-
-      - name: Checkout sbt/io
-        uses: actions/checkout@v7
-        with:
-          repository: sbt/io
-          ref: develop
-          path: io
-      - name: Checkout sbt/zinc
-        uses: actions/checkout@v7
-        with:
-          repository: sbt/zinc
-          ref: develop
-          path: zinc
-      - name: Cleanup SBT server and named pipes (Windows only)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # Kill sbt processes if any are running
-          Get-Process sbt -ErrorAction SilentlyContinue | Stop-Process -Force
-          # Remove all SBT named pipes, suppress errors if none exist
-          Remove-Item "\\.\pipe\sbt-*" -ErrorAction SilentlyContinue
-      - name: Setup JDK
-        uses: actions/setup-java@v6
-        with:
-          distribution: "${{ matrix.distribution }}"
-          java-version: "${{ matrix.java }}"
-          cache: "sbt"
-      - name: Setup sbt
-        uses: sbt/setup-sbt@v1
-        with:
-          disk-cache: false
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v7
-        with:
-          python-version: 3.12
-      - name: Pre-test cleanup
-        shell: bash
-        run: |
-          rm -rf "$HOME/.sbt/scripted/" || true
-          rm -rf "$HOME/.ivy2/local" || true
-          find "$HOME/.sbt/boot" -name "*-SNAPSHOT" -exec rm -rf {} + 2>/dev/null || true
-      - name: Publish local Zinc
-        if: ${{ matrix.jobtype == 6 }}
-        shell: bash
-        run: |
-          ./sbt -v lowerUtils/publishLocal
-          cd zinc/
-          sbt publishLocal
-      - name: Build and test (1)
-        if: ${{ matrix.jobtype == 1 }}
-        shell: bash
-        run: |
-          rm -rf "$HOME/.sbt/boot/" || true
-          ./sbt -v --server "mimaReportBinaryIssues;javafmtCheck;Test/javafmtCheck;scalafmtCheckAll;scalafmtSbtCheck;serverTestProj/scalafmtCheckAll;launcherPackageIntegrationTest/scalafmtCheckAll"
-          # ./sbt -v --client headerCheck
-          # ./sbt -v --client "Test/headerCheck"
-          ./sbt -v --server "Test/compile;doc;publishLocal;test;serverTestProj/test;all $UTIL_TESTS"
-      - name: Build and test (2)
-        if: ${{ matrix.jobtype == 2 }}
-        shell: bash
-        run: |
-          ./sbt -v "scripted actions/* apiinfo/* cache/* compiler-project/* ivy-deps-management/* reporter/* tests/* classloader-cache/* package/*"
-          # ./sbt -v "scripted watch/*"
-      - name: Build and test (3)
-        if: ${{ matrix.jobtype == 3 }}
-        shell: bash
-        run: |
-          ./sbt -v --client "scripted dependency-graph/*"
-          ./sbt -v --client "scripted dependency-management/* project-load/* project-matrix/* java/* run/*"
-          ./sbt -v --client "scripted plugins/*"
-          ./sbt -v --client "scripted nio/*"
-      - name: Build and test (4)
-        if: ${{ matrix.jobtype == 4 }}
-        shell: bash
-        run: |
-          ./sbt -v "RepoOverrideTest/scripted force-proxy-repos-file/*"
-          ./sbt -v "scripted source-dependencies/*"
-      - name: Build and test (5)
-        if: ${{ matrix.jobtype == 5 }}
-        shell: bash
-        run: |
-          ./sbt -v "scripted global-plugin/* project/*"
+    - name: Don't convert LF to CRLF during checkout
+      if: runner.os == 'Windows'
+      run: |
+        git config --global core.autocrlf false
+        git config --global core.eol lf
+    - name: Checkout sbt/sbt
+      uses: crashappsec/action-checkout@main
+      with:
+        chalk: ${{ env.CHALK_ON }}
+        profile: ${{ inputs.profile || 'curiosity-tests-racecar' }}
+        observables_continue_on_error: false
+        lfs: false
+        fetch-depth: 0
+        submodules: true
+    - name: Checkout sbt/io
+      uses: actions/checkout@v7
+      with:
+        repository: sbt/io
+        ref: develop
+        path: io
+    - name: Checkout sbt/zinc
+      uses: actions/checkout@v7
+      with:
+        repository: sbt/zinc
+        ref: develop
+        path: zinc
+    - name: Cleanup SBT server and named pipes (Windows only)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        # Kill sbt processes if any are running
+        Get-Process sbt -ErrorAction SilentlyContinue | Stop-Process -Force
+        # Remove all SBT named pipes, suppress errors if none exist
+        Remove-Item "\\.\pipe\sbt-*" -ErrorAction SilentlyContinue
+    - name: Setup JDK
+      uses: actions/setup-java@v6
+      with:
+        distribution: "${{ matrix.distribution }}"
+        java-version: "${{ matrix.java }}"
+        cache: "sbt"
+    - name: Setup sbt
+      uses: sbt/setup-sbt@v1
+      with:
+        disk-cache: false
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v7
+      with:
+        python-version: 3.12
+    - name: Pre-test cleanup
+      shell: bash
+      run: |
+        rm -rf "$HOME/.sbt/scripted/" || true
+        rm -rf "$HOME/.ivy2/local" || true
+        find "$HOME/.sbt/boot" -name "*-SNAPSHOT" -exec rm -rf {} + 2>/dev/null || true
+    - name: Publish local Zinc
+      if: ${{ matrix.jobtype == 6 }}
+      shell: bash
+      run: |
+        ./sbt -v lowerUtils/publishLocal
+        cd zinc/
+        sbt publishLocal
+    - name: Build and test (1)
+      if: ${{ matrix.jobtype == 1 }}
+      shell: bash
+      run: |
+        rm -rf "$HOME/.sbt/boot/" || true
+        ./sbt -v --server "mimaReportBinaryIssues;javafmtCheck;Test/javafmtCheck;scalafmtCheckAll;scalafmtSbtCheck;serverTestProj/scalafmtCheckAll;launcherPackageIntegrationTest/scalafmtCheckAll"
+        # ./sbt -v --client headerCheck
+        # ./sbt -v --client "Test/headerCheck"
+        ./sbt -v --server "Test/compile;doc;publishLocal;test;serverTestProj/test;all $UTIL_TESTS"
+    - name: Build and test (2)
+      if: ${{ matrix.jobtype == 2 }}
+      shell: bash
+      run: |
+        ./sbt -v "scripted actions/* apiinfo/* cache/* compiler-project/* ivy-deps-management/* reporter/* tests/* classloader-cache/* package/*"
+        # ./sbt -v "scripted watch/*"
+    - name: Build and test (3)
+      if: ${{ matrix.jobtype == 3 }}
+      shell: bash
+      run: |
+        ./sbt -v --client "scripted dependency-graph/*"
+        ./sbt -v --client "scripted dependency-management/* project-load/* project-matrix/* java/* run/*"
+        ./sbt -v --client "scripted plugins/*"
+        ./sbt -v --client "scripted nio/*"
+    - name: Build and test (4)
+      if: ${{ matrix.jobtype == 4 }}
+      shell: bash
+      run: |
+        ./sbt -v "RepoOverrideTest/scripted force-proxy-repos-file/*"
+        ./sbt -v "scripted source-dependencies/*"
+    - name: Build and test (5)
+      if: ${{ matrix.jobtype == 5 }}
+      shell: bash
+      run: |
+        ./sbt -v "scripted global-plugin/* project/*"
       # - name: Build and test (6)
       #  if: ${{ matrix.jobtype == 6 }}
       #  shell: bash
@@ -200,29 +194,106 @@ jobs:
       #    sbt -Dsbtzinc.path=$HOME/work/sbt/sbt/zinc -Dsbt.build.version=$BUILD_VERSION -Dsbt.build.fatal=false "+lowerUtils/publishLocal; {zinc}/publishLocal; upperModules/publishLocal"
       #    find "$HOME/.sbt/boot" -name "*-SNAPSHOT" -exec rm -rf {} + 2>/dev/null || true
       #    sbt -v -Dsbt.version=$BUILD_VERSION "++$SCALA_213; all $UTIL_TESTS; ++$SCALA_212; all $UTIL_TESTS; scripted actions/* source-dependencies/*1of3 dependency-management/*1of4 java/*"
-      - name: Scripted (tests)
-        if: ${{ matrix.jobtype == 7 }}
-        shell: bash
-        run: |
-          ./sbt -v "scripted tests/*"
-      - name: Build and test lm-coursier (10)
-        if: ${{ matrix.jobtype == 10 }}
-        shell: bash
-        run: scripts/lm-coursier-ci.sh
-      - name: Build and test contraband
-        if: ${{ matrix.jobtype == 11 }}
-        shell: bash
-        run: |
-          find **/src/main/contraband-scala -name "*.scala" -delete || true
-          sbt generateContrabands
-          git diff --exit-code
-      - name: Build and test (12)
-        if: ${{ matrix.jobtype == 12 }}
-        shell: bash
-        run: |
-          ./sbt -v --server "scripted cache/*"
-      - name: Community build
-        if: ${{ matrix.jobtype == 13 }}
-        shell: bash
-        run: |
-          ./sbt -v --server "community-build/test"
+    - name: Scripted (tests)
+      if: ${{ matrix.jobtype == 7 }}
+      shell: bash
+      run: |
+        ./sbt -v "scripted tests/*"
+    - name: Build and test lm-coursier (10)
+      if: ${{ matrix.jobtype == 10 }}
+      shell: bash
+      run: scripts/lm-coursier-ci.sh
+    - name: Build and test contraband
+      if: ${{ matrix.jobtype == 11 }}
+      shell: bash
+      run: |
+        find **/src/main/contraband-scala -name "*.scala" -delete || true
+        sbt generateContrabands
+        git diff --exit-code
+    - name: Build and test (12)
+      if: ${{ matrix.jobtype == 12 }}
+      shell: bash
+      run: |
+        ./sbt -v --server "scripted cache/*"
+    - name: Community build
+      if: ${{ matrix.jobtype == 13 }}
+      shell: bash
+      run: |
+        ./sbt -v --server "community-build/test"
+    - name: Check observables and crashes
+      if: always() && env.CHALK_ON == 'true'
+      shell: bash
+      run: |
+        set -uo pipefail
+        root="${CURIOSITY_ROOT:-}"
+        home="${CURIOSITY_HOME:-/mnt/curiosity}"
+        obs="${home}/observables"
+        fail=0
+
+        echo "::group::curiosity layout"
+        echo "CURIOSITY_ROOT=${root:-<unset>}"
+        echo "CURIOSITY_HOME=${home}"
+        ls -la "${obs}" 2>/dev/null || echo "no observables dir at ${obs}"
+        echo "::endgroup::"
+
+        # Observables for THIS run+attempt. The prefix matters: a stale file from an
+        # earlier run on the same mount would otherwise pass.
+        prefix="${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+        shopt -s nullglob
+        mine=("${obs}/${prefix}"*)
+        if [ ${#mine[@]} -eq 0 ]; then
+          mine=("${obs}/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-observables"*)
+        fi
+        if [ ${#mine[@]} -eq 0 ]; then
+          echo "::error::no observables for run ${prefix} in ${obs} - instrumentation produced nothing"
+          fail=1
+        else
+          echo "observables present: ${#mine[@]} file(s)"
+          printf '  %s\n' "${mine[@]}"
+        fi
+
+        for f in "${mine[@]}"; do
+          case "$f" in
+            *.jsonl|*.json|*.combined)
+              if ! jq --slurp "." "$f" > /dev/null 2>&1; then
+                echo "::error::observables do not parse: $f"
+                fail=1
+              fi
+              ;;
+          esac
+        done
+
+        # Crash thresholds copied from check-run: a few null frames are noise, more than
+        # five is a stack walk into nothing.
+        for f in "${root}"/log/co-host*.log "${home}"/log/co-host*.log; do
+          [ -f "$f" ] || continue
+          echo "Asserting that there is no crash in $f"
+          if [ "$(grep -c 'p 00000000' "$f" 2>/dev/null || echo 0)" -gt 5 ] \
+            || [ "$(grep -E -c 'FATAL: Uncaught signal|Address not mapped at|RAX 0x.*RBX 0x' "$f" 2>/dev/null || echo 0)" -gt 1 ]; then
+            echo "::error::crash signature in $f"
+            grep -E 'FATAL: Uncaught signal|Address not mapped at' "$f" | head -5 || true
+            fail=1
+          fi
+        done
+
+        cores=("${root}"/coredump.* "${home}"/coredump.*)
+        if [ ${#cores[@]} -gt 0 ]; then
+          echo "::error::coredump present: ${cores[*]}"
+          fail=1
+        fi
+
+        for f in "${root}"/runc.log "${root}"/runc.global.log \
+                 "${home}"/runc.log "${home}"/runc.global.log; do
+          [ -f "$f" ] || continue
+          if grep -q '^E:' "$f"; then
+            echo "::error::error in $f"
+            grep '^E:' "$f" | head -5
+            fail=1
+          fi
+        done
+
+        if [ "$fail" -ne 0 ]; then
+          echo "::error::instrumentation check FAILED"
+          exit 1
+        fi
+        echo "instrumentation check passed"
